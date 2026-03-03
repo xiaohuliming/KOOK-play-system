@@ -979,12 +979,22 @@ async def roll_cmd(msg: Message, total_str: str = '', count_str: str = ''):
         return
 
     results = [random.randint(1, total) for _ in range(count)]
-    result_text = ''.join([f'【{n}】' for n in results])
-    await msg.reply(
-        f"ROLL({total}, {count}) 结果: {result_text}",
-        use_quote=False,
-        type=MessageTypes.KMD,
-    )
+    result_text = ' '.join([f'「{n}」' for n in results])
+    card = [
+        {
+            "type": "card",
+            "theme": "secondary",
+            "size": "lg",
+            "modules": [
+                {"type": "header", "text": {"type": "plain-text", "content": "Roll点结果"}},
+                {"type": "section", "text": {"type": "kmarkdown", "content": result_text}},
+            ],
+        }
+    ]
+    try:
+        await msg.reply(json.dumps(card, ensure_ascii=False), type=MessageTypes.CARD)
+    except Exception:
+        await msg.reply(f'Roll点结果: {result_text}')
 
 
 @bot.command(name='发布抽奖')
