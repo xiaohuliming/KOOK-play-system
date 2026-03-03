@@ -85,7 +85,7 @@
               <span class="text-slate-400 text-xs">-</span>
               {% endif %}
             </td>
-            <td class="py-3 text-slate-500 dark:text-slate-400 text-xs">{{ user.created_at.strftime('%Y-%m-%d') if user.created_at else '-' }}</td>
+            <td class="py-3 text-slate-500 dark:text-slate-400 text-xs">{{ fmt_dt(user.created_at, '%Y-%m-%d') if user.created_at else '-' }}</td>
             <td class="py-3 text-right">
               <div class="flex flex-col items-end gap-1">
                 {# 第一行: 改角色 + 管理身份 #}

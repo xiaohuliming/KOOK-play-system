@@ -331,11 +331,6 @@ def confirm_order(order, operator_id=None):
     order.confirm_time = datetime.utcnow()
     order.pay_time = datetime.utcnow()
 
-    # 增加亲密度 (基于订单总价, 1嗯呢币 = 1亲密度)
-    from app.services.intimacy_service import update_intimacy
-    if order.total_price and order.total_price > 0:
-        update_intimacy(order.boss_id, order.player_id, order.total_price)
-
     log_operation(operator_id or _get_operator_id(), 'order_confirm', 'order', order.id,
                   f'订单 {order.order_no} 已确认, 发放佣金: {order.player_earning}')
 
@@ -370,11 +365,6 @@ def settle_escort_order(order):
     order.status = 'paid'
     order.confirm_time = datetime.utcnow()
 
-    # 增加亲密度
-    from app.services.intimacy_service import update_intimacy
-    if order.total_price and order.total_price > 0:
-        update_intimacy(order.boss_id, order.player_id, order.total_price)
-
     log_operation(_get_operator_id(), 'order_settle', 'order', order.id,
                   f'订单 {order.order_no} 结算完成, 佣金: {earning}')
 
@@ -397,12 +387,6 @@ def refund_order(order):
     # 如果已经发了佣金, 扣回
     if order.status == 'paid':
         deduct_player_earning(player, order.player_earning, order)
-
-    # 退款扣除亲密度 (仅已结算的订单才有亲密度)
-    if order.status == 'paid':
-        from app.services.intimacy_service import update_intimacy
-        if order.total_price and order.total_price > 0:
-            update_intimacy(order.boss_id, order.player_id, -order.total_price)
 
     # 护航/代练: 解冻冻结的佣金
     if order.order_type in ('escort', 'training') and order.status == 'pending_pay':

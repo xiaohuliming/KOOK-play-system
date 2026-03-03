@@ -122,7 +122,7 @@
             <td class="py-3 font-bold text-slate-800 dark:text-white">{{ "%.2f"|format(go.total_price) }}</td>
             <td class="py-3 text-green-600 dark:text-green-400 font-medium">{{ "%.2f"|format(go.player_earning) }}</td>
             <td class="py-3 text-slate-500 dark:text-slate-400 text-xs">{{ go.staff.staff_display_name if go.staff else '-' }}</td>
-            <td class="py-3 text-slate-500 dark:text-slate-400 text-xs">{{ go.created_at.strftime('%m-%d %H:%M') }}</td>
+            <td class="py-3 text-slate-500 dark:text-slate-400 text-xs">{{ fmt_dt(go.created_at, '%m-%d %H:%M') }}</td>
             <td class="py-3">
               {% if go.status == 'refunded' %}
               <span class="px-2 py-1 bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 text-xs rounded-full font-medium">已退款</span>

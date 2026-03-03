@@ -168,7 +168,7 @@
               <span class="text-slate-400 text-xs">未通知</span>
               {% endif %}
             </td>
-            <td class="py-3 text-slate-500 dark:text-slate-400 text-xs">{{ w.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+            <td class="py-3 text-slate-500 dark:text-slate-400 text-xs">{{ fmt_dt(w.created_at, '%Y-%m-%d %H:%M') }}</td>
           </tr>
           {% endfor %}
         </tbody>

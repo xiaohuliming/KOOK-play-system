@@ -180,7 +180,7 @@
               {% endif %}
             </td>
             <td class="py-3 text-slate-500 dark:text-slate-400 text-xs">{{ order.staff.staff_display_name if order.staff else '-' }}</td>
-            <td class="py-3 text-slate-500 dark:text-slate-400 text-xs">{{ order.created_at.strftime('%m-%d %H:%M') }}</td>
+            <td class="py-3 text-slate-500 dark:text-slate-400 text-xs">{{ fmt_dt(order.created_at, '%m-%d %H:%M') }}</td>
             <td class="py-3 text-right">
               <div class="flex justify-end gap-1">
                 <button onclick="showDetail({{ order.id }})" class="text-purple-500 hover:text-purple-600 text-xs font-medium px-2 py-1 rounded hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors">详情</button>
@@ -300,7 +300,7 @@
               {% set color = order.status_color %}
               <span class="px-2 py-1 bg-{{ color }}-100 text-{{ color }}-800 dark:bg-{{ color }}-900/30 dark:text-{{ color }}-300 text-xs rounded-full font-medium">{{ order.status_label }}</span>
             </td>
-            <td class="py-3 text-slate-500 dark:text-slate-400 text-xs">{{ order.created_at.strftime('%m-%d %H:%M') }}</td>
+            <td class="py-3 text-slate-500 dark:text-slate-400 text-xs">{{ fmt_dt(order.created_at, '%m-%d %H:%M') }}</td>
             <td class="py-3 text-right">
               {% if order.status == 'pending_confirm' %}
               <form action="{{ url_for('orders.confirm', order_id=order.id) }}" method="post" class="inline">
@@ -411,7 +411,7 @@
               {% set color = order.status_color %}
               <span class="px-2 py-1 bg-{{ color }}-100 text-{{ color }}-800 dark:bg-{{ color }}-900/30 dark:text-{{ color }}-300 text-xs rounded-full font-medium">{{ order.status_label }}</span>
             </td>
-            <td class="py-3 text-slate-500 dark:text-slate-400 text-xs">{{ order.created_at.strftime('%m-%d %H:%M') }}</td>
+            <td class="py-3 text-slate-500 dark:text-slate-400 text-xs">{{ fmt_dt(order.created_at, '%m-%d %H:%M') }}</td>
             <td class="py-3 text-right">
               {% if as_player and order.status == 'pending_report' %}
               <a href="{{ url_for('orders.report', order_id=order.id) }}" class="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors">申报</a>
@@ -498,7 +498,7 @@
               {% set color = order.status_color %}
               <span class="px-2 py-1 bg-{{ color }}-100 text-{{ color }}-800 dark:bg-{{ color }}-900/30 dark:text-{{ color }}-300 text-xs rounded-full font-medium">{{ order.status_label }}</span>
             </td>
-            <td class="py-3 text-slate-500 dark:text-slate-400 text-xs">{{ order.created_at.strftime('%m-%d %H:%M') }}</td>
+            <td class="py-3 text-slate-500 dark:text-slate-400 text-xs">{{ fmt_dt(order.created_at, '%m-%d %H:%M') }}</td>
             <td class="py-3 text-right">
               {% if order.status == 'pending_report' %}
               <a href="{{ url_for('orders.report', order_id=order.id) }}" class="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded-lg text-xs font-medium transition-colors">申报</a>

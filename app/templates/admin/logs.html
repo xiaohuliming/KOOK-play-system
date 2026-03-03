@@ -43,7 +43,7 @@
         <tbody>
           {% for log in logs.items %}
           <tr class="border-b border-white/20 dark:border-slate-700/50 hover:bg-white/20 dark:hover:bg-slate-700/30 transition-colors text-sm">
-            <td class="py-3 text-slate-500 dark:text-slate-400 text-xs whitespace-nowrap">{{ log.created_at.strftime('%m-%d %H:%M:%S') if log.created_at else '-' }}</td>
+            <td class="py-3 text-slate-500 dark:text-slate-400 text-xs whitespace-nowrap">{{ fmt_dt(log.created_at, '%m-%d %H:%M:%S') if log.created_at else '-' }}</td>
             <td class="py-3 font-medium text-slate-800 dark:text-white">{{ log.operator.nickname if log.operator else '-' }}</td>
             <td class="py-3">
               <span class="px-2 py-1 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs rounded-full font-mono">{{ log.action_type }}</span>

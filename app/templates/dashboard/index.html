@@ -275,7 +275,7 @@
                         <div class="flex flex-col">
                           <span class="text-sm font-semibold text-slate-800 dark:text-slate-200">{{ order.boss.nickname }} / {{ order.player.player_nickname }}</span>
                           <span class="text-xs text-slate-500 dark:text-slate-500 flex items-center gap-1 mt-0.5">
-                            <i data-lucide="clock" width="10" height="10"></i> {{ order.created_at.strftime('%H:%M') }}
+                            <i data-lucide="clock" width="10" height="10"></i> {{ fmt_dt(order.created_at, '%H:%M') }}
                           </span>
                         </div>
                       </td>

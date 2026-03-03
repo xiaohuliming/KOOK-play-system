@@ -385,10 +385,6 @@ def update_info(user_id):
                 flash('经验值已更新', 'success')
 
     elif action in ('toggle_anonymous_all', 'toggle_anonymous_upgrade'):
-        if not current_user.is_admin:
-            flash('需要管理员权限', 'error')
-            return redirect(url_for('users.detail', user_id=user_id))
-
         new_state = not user.anonymous_broadcast_all
         user.set_anonymous_broadcast_all(new_state)
         log_operation(

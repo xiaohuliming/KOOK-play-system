@@ -126,6 +126,16 @@
           <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-medium">保存</button>
         </form>
 
+        {# 客服及以上可用：全部匿名播报 #}
+        <div class="border-t border-slate-200 dark:border-slate-700 pt-3 mt-3">
+          <form method="post" action="{{ url_for('users.update_info', user_id=user.id) }}" class="inline">
+            <input type="hidden" name="action" value="toggle_anonymous_all">
+            <button type="submit" class="bg-slate-500 hover:bg-slate-600 text-white px-4 py-2 rounded-xl text-xs font-medium">
+              {{ '关闭' if user.anonymous_broadcast_all else '开启' }}全部匿名播报
+            </button>
+          </form>
+        </div>
+
         {# 管理员操作 #}
         {% if current_user.is_admin %}
         <div class="border-t border-slate-200 dark:border-slate-700 pt-3 mt-3 space-y-2">
@@ -140,13 +150,6 @@
             <input type="hidden" name="action" value="update_experience">
             <input type="number" name="experience" value="{{ user.experience }}" class="w-32 px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500">
             <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl text-xs font-medium">修改经验值</button>
-          </form>
-
-          <form method="post" action="{{ url_for('users.update_info', user_id=user.id) }}" class="inline">
-            <input type="hidden" name="action" value="toggle_anonymous_all">
-            <button type="submit" class="bg-slate-500 hover:bg-slate-600 text-white px-4 py-2 rounded-xl text-xs font-medium">
-              {{ '关闭' if user.anonymous_broadcast_all else '开启' }}全部匿名播报
-            </button>
           </form>
 
           <form method="post" action="{{ url_for('users.update_info', user_id=user.id) }}" class="flex gap-2 items-end mt-2">
@@ -233,7 +236,7 @@
             </td>
             <td class="py-3 text-slate-800 dark:text-white">{{ "%.2f"|format(log.balance_after) }}</td>
             <td class="py-3 text-slate-500 dark:text-slate-400 text-xs max-w-[200px] truncate">{{ log.reason or '-' }}</td>
-            <td class="py-3 text-slate-500 dark:text-slate-400 text-xs">{{ log.created_at.strftime('%m-%d %H:%M') }}</td>
+            <td class="py-3 text-slate-500 dark:text-slate-400 text-xs">{{ fmt_dt(log.created_at, '%m-%d %H:%M') }}</td>
           </tr>
           {% endfor %}
           {% else %}
@@ -338,7 +341,7 @@
             </td>
             <td class="py-3 text-slate-500 dark:text-slate-400 text-xs">{{ log.reason or '-' }}</td>
             <td class="py-3 text-slate-800 dark:text-white">{{ "%.2f"|format(log.balance_after) }}</td>
-            <td class="py-3 text-slate-500 dark:text-slate-400 text-xs">{{ log.created_at.strftime('%m-%d %H:%M') }}</td>
+            <td class="py-3 text-slate-500 dark:text-slate-400 text-xs">{{ fmt_dt(log.created_at, '%m-%d %H:%M') }}</td>
           </tr>
           {% endfor %}
           {% else %}
@@ -384,7 +387,7 @@
             <td class="py-3 font-bold text-slate-800 dark:text-white">{{ "%.2f"|format(order.total_price) }}</td>
             <td class="py-3"><span class="px-2 py-1 bg-{{ order.status_color }}-100 text-{{ order.status_color }}-800 dark:bg-{{ order.status_color }}-900/30 dark:text-{{ order.status_color }}-300 text-xs rounded-full font-medium">{{ order.status_label }}</span></td>
             <td class="py-3 text-slate-500 text-xs">{{ order.staff.staff_display_name if order.staff else '-' }}</td>
-            <td class="py-3 text-slate-500 text-xs">{{ order.created_at.strftime('%m-%d %H:%M') }}</td>
+            <td class="py-3 text-slate-500 text-xs">{{ fmt_dt(order.created_at, '%m-%d %H:%M') }}</td>
           </tr>
           {% endfor %}
           {% else %}

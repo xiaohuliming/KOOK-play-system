@@ -113,6 +113,7 @@ def create_app(config_class=Config, start_background_tasks=True):
 
     # Register permission helpers as template globals
     from app.utils import permissions as perm
+    from app.utils.time_utils import fmt_dt
     app.jinja_env.globals['can_dispatch_order'] = perm.can_dispatch_order
     app.jinja_env.globals['can_freeze_order'] = perm.can_freeze_order
     app.jinja_env.globals['can_refund_order'] = perm.can_refund_order
@@ -124,6 +125,8 @@ def create_app(config_class=Config, start_background_tasks=True):
     app.jinja_env.globals['can_export_data'] = perm.can_export_data
     app.jinja_env.globals['can_view_stats'] = perm.can_view_stats
     app.jinja_env.globals['can_manage_system'] = perm.can_manage_system
+    app.jinja_env.globals['fmt_dt'] = fmt_dt
+    app.jinja_env.filters['bj'] = fmt_dt
 
     # APScheduler 定时任务
     if start_background_tasks and not app.config.get('TESTING'):

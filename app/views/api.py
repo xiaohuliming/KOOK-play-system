@@ -8,6 +8,7 @@ from app.models.user import User
 from app.models.order import Order
 from app.models.finance import BalanceLog, CommissionLog
 from app.extensions import db
+from app.utils.time_utils import fmt_dt
 
 api_bp = Blueprint('api', __name__)
 
@@ -219,11 +220,11 @@ def order_detail(order_id):
         'status_label': order.status_label,
         'freeze_status': order.freeze_status,
         'remark': order.remark or '',
-        'created_at': order.created_at.strftime('%Y-%m-%d %H:%M') if order.created_at else '',
-        'report_time': order.report_time.strftime('%Y-%m-%d %H:%M') if order.report_time else '',
-        'confirm_time': order.confirm_time.strftime('%Y-%m-%d %H:%M') if order.confirm_time else '',
-        'pay_time': order.pay_time.strftime('%Y-%m-%d %H:%M') if order.pay_time else '',
-        'refund_time': order.refund_time.strftime('%Y-%m-%d %H:%M') if order.refund_time else '',
+        'created_at': fmt_dt(order.created_at, '%Y-%m-%d %H:%M'),
+        'report_time': fmt_dt(order.report_time, '%Y-%m-%d %H:%M'),
+        'confirm_time': fmt_dt(order.confirm_time, '%Y-%m-%d %H:%M'),
+        'pay_time': fmt_dt(order.pay_time, '%Y-%m-%d %H:%M'),
+        'refund_time': fmt_dt(order.refund_time, '%Y-%m-%d %H:%M'),
     }
 
     # 订单资金明细（用于详情展示，退款后需可追踪）
@@ -245,13 +246,13 @@ def order_detail(order_id):
     ).order_by(CommissionLog.created_at.desc()).first()
 
     result['consume_amount'] = float(abs(consume_log.amount)) if consume_log else 0
-    result['consume_time'] = consume_log.created_at.strftime('%Y-%m-%d %H:%M') if consume_log else ''
+    result['consume_time'] = fmt_dt(consume_log.created_at, '%Y-%m-%d %H:%M') if consume_log else ''
     result['refund_amount'] = float(refund_log.amount) if refund_log else 0
-    result['refund_balance_time'] = refund_log.created_at.strftime('%Y-%m-%d %H:%M') if refund_log else ''
+    result['refund_balance_time'] = fmt_dt(refund_log.created_at, '%Y-%m-%d %H:%M') if refund_log else ''
     result['refund_reason'] = refund_log.reason if refund_log else ''
     result['player_refund_deduct'] = float(abs(player_refund_deduct_log.amount)) if player_refund_deduct_log else 0
     result['player_refund_deduct_time'] = (
-        player_refund_deduct_log.created_at.strftime('%Y-%m-%d %H:%M') if player_refund_deduct_log else ''
+        fmt_dt(player_refund_deduct_log.created_at, '%Y-%m-%d %H:%M') if player_refund_deduct_log else ''
     )
 
     # 客服+可见完整财务数据

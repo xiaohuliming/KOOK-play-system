@@ -339,7 +339,7 @@
               {% set sc = order.status_color %}
               <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-{{ sc }}-100 text-{{ sc }}-600 dark:bg-{{ sc }}-900/30 dark:text-{{ sc }}-300">{{ order.status_label }}</span>
             </td>
-            <td class="py-4 text-sm text-slate-500 dark:text-slate-400">{{ order.created_at.strftime('%m-%d %H:%M') }}</td>
+            <td class="py-4 text-sm text-slate-500 dark:text-slate-400">{{ fmt_dt(order.created_at, '%m-%d %H:%M') }}</td>
           </tr>
           {% endfor %}
           {% endif %}
@@ -429,7 +429,7 @@
           {% if earnings %}
           {% for log in earnings.items %}
           <tr class="border-b border-white/20 dark:border-slate-700/50 hover:bg-white/20 dark:hover:bg-slate-700/30 transition-colors">
-            <td class="py-4 text-sm text-slate-500 dark:text-slate-400">{{ log.created_at.strftime('%m-%d %H:%M') }}</td>
+            <td class="py-4 text-sm text-slate-500 dark:text-slate-400">{{ fmt_dt(log.created_at, '%m-%d %H:%M') }}</td>
             <td class="py-4 text-sm">
               {% if log.change_type == 'order_income' %}
                 <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-300">订单收入</span>
