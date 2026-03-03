@@ -248,9 +248,10 @@ def confirm_by_no(order_no):
 
 
 def _handle_report(order):
-    """陪玩申报处理逻辑"""
-    if order.player_id != current_user.id:
-        flash('只能申报自己的订单', 'error')
+    """申报处理逻辑：陪玩本人或客服及以上可操作"""
+    can_report = (order.player_id == current_user.id) or current_user.is_staff
+    if not can_report:
+        flash('仅陪玩本人或客服及以上可申报该订单', 'error')
         return redirect(url_for('orders.index'))
 
     if order.status != 'pending_report':
@@ -272,7 +273,10 @@ def _handle_report(order):
         # KOOK 推送: 申报通知给老板
         site_url = current_app.config.get('SITE_URL', '')
         kook_service.push_order_report(order, site_url=site_url)
-        flash('申报成功，等待老板确认', 'success')
+        if current_user.is_staff and order.player_id != current_user.id:
+            flash('代报单成功，等待老板确认支付', 'success')
+        else:
+            flash('申报成功，等待老板确认支付', 'success')
         return redirect(url_for('orders.index'))
 
     return render_template('orders/report.html', order=order)

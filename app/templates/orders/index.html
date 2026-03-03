@@ -184,6 +184,14 @@
             <td class="py-3 text-right">
               <div class="flex justify-end gap-1">
                 <button onclick="showDetail({{ order.id }})" class="text-purple-500 hover:text-purple-600 text-xs font-medium px-2 py-1 rounded hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors">详情</button>
+                {% if order.status == 'pending_report' %}
+                <a href="{{ url_for('orders.report', order_id=order.id) }}" class="text-orange-500 hover:text-orange-600 text-xs font-medium px-2 py-1 rounded hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors">代报单</a>
+                {% endif %}
+                {% if order.status == 'pending_confirm' %}
+                <form action="{{ url_for('orders.confirm', order_id=order.id) }}" method="post" class="inline">
+                  <button type="submit" class="text-emerald-600 hover:text-emerald-700 text-xs font-medium px-2 py-1 rounded hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors" onclick="return confirm('确认代老板支付并结单？')">代确认支付</button>
+                </form>
+                {% endif %}
                 {# 冻结/解冻: 客服+ #}
                 {% if can_freeze_order(current_user) %}
                   {% if not order.is_frozen %}
