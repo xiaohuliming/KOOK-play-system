@@ -3,13 +3,14 @@ from decimal import Decimal
 
 from flask import Blueprint, render_template, request
 from flask_login import login_required, current_user
-from sqlalchemy import func, desc
+from sqlalchemy import func, desc, case
 
 from app.extensions import db
 from app.models.order import Order
 from app.models.gift import GiftOrder
 from app.models.intimacy import Intimacy
 from app.models.user import User
+from app.models.finance import CommissionLog
 
 rankings_bp = Blueprint('rankings', __name__, template_folder='../templates')
 
@@ -66,43 +67,41 @@ def index():
     intimacy_ranking = []
 
     if tab == 'player':
-        # 陪玩接单排行: 按到手小猪粮排序 (订单+礼物)
-        # 订单收益
-        order_earnings = db.session.query(
-            Order.player_id,
-            func.sum(Order.player_earning).label('order_earning')
+        # 陪玩收益排行：按佣金日志累计统计（提现不计入排行，不会把排行清零）
+        income_sub = db.session.query(
+            CommissionLog.user_id.label('player_id'),
+            func.sum(
+                case(
+                    (CommissionLog.change_type == 'order_income', CommissionLog.amount),
+                    else_=0
+                )
+            ).label('order_earning'),
+            func.sum(
+                case(
+                    (CommissionLog.change_type == 'gift_income', CommissionLog.amount),
+                    else_=0
+                )
+            ).label('gift_earning'),
+            func.sum(CommissionLog.amount).label('total_income')
         ).filter(
-            Order.status == 'paid',
-            Order.pay_time >= start_date,
-            Order.pay_time < end_date
-        ).group_by(Order.player_id).subquery()
+            CommissionLog.change_type.in_(['order_income', 'gift_income', 'refund_deduct']),
+            CommissionLog.created_at >= start_date,
+            CommissionLog.created_at < end_date
+        ).group_by(CommissionLog.user_id).subquery()
 
-        # 礼物收益
-        gift_earnings = db.session.query(
-            GiftOrder.player_id,
-            func.sum(GiftOrder.player_earning).label('gift_earning')
-        ).filter(
-            GiftOrder.status == 'paid',
-            GiftOrder.created_at >= start_date,
-            GiftOrder.created_at < end_date
-        ).group_by(GiftOrder.player_id).subquery()
-
-        # 合并
         results = db.session.query(
             User,
-            func.coalesce(order_earnings.c.order_earning, 0).label('order_earning'),
-            func.coalesce(gift_earnings.c.gift_earning, 0).label('gift_earning'),
-        ).outerjoin(
-            order_earnings, User.id == order_earnings.c.player_id
-        ).outerjoin(
-            gift_earnings, User.id == gift_earnings.c.player_id
+            func.coalesce(income_sub.c.order_earning, 0).label('order_earning'),
+            func.coalesce(income_sub.c.gift_earning, 0).label('gift_earning'),
+            func.coalesce(income_sub.c.total_income, 0).label('total_income'),
+        ).join(
+            income_sub, User.id == income_sub.c.player_id
         ).filter(
-            User.role == 'player',
-            db.or_(order_earnings.c.order_earning != None, gift_earnings.c.gift_earning != None)
+            User.role_filter_expr('player')
         ).all()
 
-        for user, oe, ge in results:
-            total = Decimal(str(oe or 0)) + Decimal(str(ge or 0))
+        for user, oe, ge, total_income in results:
+            total = Decimal(str(total_income or 0))
             player_ranking.append({
                 'user': user,
                 'order_earning': Decimal(str(oe or 0)),
