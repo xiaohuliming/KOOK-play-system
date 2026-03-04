@@ -11,6 +11,8 @@ from app.models.finance import BalanceLog, CommissionLog
 from app.services.log_service import log_operation
 from flask_login import current_user
 
+NO_VIP_DISCOUNT = Decimal('100')
+
 
 def _calc_order_amounts_with_discount_subsidy(subtotal, commission_rate, discount_percent):
     """
@@ -21,7 +23,8 @@ def _calc_order_amounts_with_discount_subsidy(subtotal, commission_rate, discoun
     """
     subtotal_dec = Decimal(str(subtotal))
     commission_dec = Decimal(str(commission_rate))
-    discount_dec = Decimal(str(discount_percent)) / Decimal('100')
+    # 已关闭 VIP 折扣：统一按 100% 实付
+    discount_dec = NO_VIP_DISCOUNT / Decimal('100')
 
     total_price = (subtotal_dec * discount_dec).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     player_earning = (subtotal_dec * commission_dec / Decimal('100')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
@@ -175,7 +178,7 @@ def create_normal_order(boss, player, project_item, price_tier, staff,
     commission_rate = project_item.commission_rate
 
     # 创建前余额校验：按 1 小时/局的最低可扣金额预校验
-    min_required = (base_price + extra_price_dec + addon_price_dec) * (Decimal(str(boss.vip_discount or 100)) / Decimal('100'))
+    min_required = (base_price + extra_price_dec + addon_price_dec)
     min_required = min_required.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     total_available = boss.m_coin + boss.m_coin_gift
     if total_available < min_required:
@@ -192,7 +195,7 @@ def create_normal_order(boss, player, project_item, price_tier, staff,
         extra_price=extra_price_dec,
         addon_desc=addon_desc,
         addon_price=addon_price_dec,
-        boss_discount=boss.vip_discount,
+        boss_discount=NO_VIP_DISCOUNT,
         commission_rate=commission_rate,
         order_type='normal',
         status='pending_report',
@@ -219,7 +222,7 @@ def create_escort_order(boss, player, project_item, price_tier, staff,
     total_price, player_earning, shop_earning = _calc_order_amounts_with_discount_subsidy(
         subtotal=subtotal,
         commission_rate=commission_rate,
-        discount_percent=boss.vip_discount,
+        discount_percent=NO_VIP_DISCOUNT,
     )
 
     # 验证余额
@@ -238,7 +241,7 @@ def create_escort_order(boss, player, project_item, price_tier, staff,
         extra_price=Decimal(str(extra_price)),
         addon_desc=addon_desc,
         addon_price=Decimal(str(addon_price)),
-        boss_discount=boss.vip_discount,
+        boss_discount=NO_VIP_DISCOUNT,
         commission_rate=commission_rate,
         total_price=total_price,
         player_earning=player_earning,
@@ -289,7 +292,7 @@ def report_order(order, duration_hours, operator_id=None):
     total_price, player_earning, shop_earning = _calc_order_amounts_with_discount_subsidy(
         subtotal=subtotal,
         commission_rate=order.commission_rate,
-        discount_percent=order.boss_discount,
+        discount_percent=NO_VIP_DISCOUNT,
     )
 
     order.duration = duration
@@ -300,6 +303,7 @@ def report_order(order, duration_hours, operator_id=None):
     order.fill_time = now
     order.report_time = now
     order.status = 'pending_confirm'
+    order.boss_discount = NO_VIP_DISCOUNT
     order.auto_confirm_at = now + timedelta(hours=24)
 
     log_operation(operator_id or _get_operator_id(), 'order_report', 'order', order.id,
