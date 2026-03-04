@@ -176,6 +176,18 @@ def refund_gift_order(gift_order, operator_id=None):
     total_price = gift_order.total_price
     player_earning = gift_order.player_earning
 
+    # 先校验可扣佣金，避免出现“老板已退款但陪玩仅被清零”的账务不一致
+    if gift_order.freeze_status == 'frozen':
+        available_frozen = Decimal(str(player.m_bean_frozen or 0))
+        if available_frozen < player_earning:
+            shortfall = (player_earning - available_frozen).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            return False, f'退款失败：陪玩冻结佣金不足，差额 {shortfall} 小猪粮，请先补足后再退款'
+    else:
+        available = Decimal(str(player.m_bean or 0))
+        if available < player_earning:
+            shortfall = (player_earning - available).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            return False, f'退款失败：陪玩佣金不足，差额 {shortfall} 小猪粮，请先补足后再退款'
+
     # 退还老板余额
     boss.m_coin += total_price
     balance_log = BalanceLog(
@@ -190,13 +202,10 @@ def refund_gift_order(gift_order, operator_id=None):
     # 扣回陪玩佣金
     if gift_order.freeze_status == 'frozen':
         # 冻结中: 直接扣冻结余额
-        if player.m_bean_frozen >= player_earning:
-            player.m_bean_frozen -= player_earning
+        player.m_bean_frozen -= player_earning
     else:
         # 已到账: 扣可用余额
         player.m_bean -= player_earning
-        if player.m_bean < 0:
-            player.m_bean = Decimal('0')
 
     commission_log = CommissionLog(
         user_id=player.id,
