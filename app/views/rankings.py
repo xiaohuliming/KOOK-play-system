@@ -4,11 +4,11 @@ from decimal import Decimal
 from flask import Blueprint, render_template, request
 from flask_login import login_required, current_user
 from sqlalchemy import func, desc, case
+from sqlalchemy.orm import aliased
 
 from app.extensions import db
 from app.models.order import Order
 from app.models.gift import GiftOrder
-from app.models.intimacy import Intimacy
 from app.models.user import User
 from app.models.finance import CommissionLog
 
@@ -154,12 +154,45 @@ def index():
         boss_ranking.sort(key=lambda x: x['total'], reverse=True)
 
     elif tab == 'intimacy':
-        # 亲密度排行
-        intimacy_ranking = Intimacy.query.filter(
-            Intimacy.value > 0
+        # 亲密度排行：仅按礼物统计（不计订单）
+        gift_intimacy = db.session.query(
+            GiftOrder.boss_id.label('boss_id'),
+            GiftOrder.player_id.label('player_id'),
+            func.sum(GiftOrder.total_price).label('value'),
+        ).filter(
+            GiftOrder.status == 'paid'
+        ).group_by(
+            GiftOrder.boss_id,
+            GiftOrder.player_id
+        ).subquery()
+
+        BossUser = aliased(User)
+        PlayerUser = aliased(User)
+
+        rows = db.session.query(
+            BossUser,
+            PlayerUser,
+            gift_intimacy.c.value,
+        ).select_from(
+            gift_intimacy
+        ).join(
+            BossUser, gift_intimacy.c.boss_id == BossUser.id
+        ).join(
+            PlayerUser, gift_intimacy.c.player_id == PlayerUser.id
+        ).filter(
+            gift_intimacy.c.value > 0
         ).order_by(
-            desc(Intimacy.value)
+            desc(gift_intimacy.c.value)
         ).limit(100).all()
+
+        intimacy_ranking = [
+            {
+                'boss': boss,
+                'player': player,
+                'value': Decimal(str(value or 0)),
+            }
+            for boss, player, value in rows
+        ]
 
     return render_template('rankings/index.html',
                            tab=tab,

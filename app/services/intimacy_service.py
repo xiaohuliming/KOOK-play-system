@@ -2,13 +2,15 @@ from datetime import datetime
 from decimal import Decimal
 
 from app.extensions import db
+from sqlalchemy import func
+from app.models.gift import GiftOrder
 from app.models.intimacy import Intimacy
 from app.services.log_service import log_operation
 
 
 def update_intimacy(boss_id, player_id, amount):
     """
-    增加/减少亲密度 (基于消费金额, 1嗯呢币 = 1亲密度)
+    增加/减少亲密度（仅礼物口径，1嗯呢币 = 1亲密度）
     """
     amount = Decimal(str(amount))
     record = Intimacy.query.filter_by(boss_id=boss_id, player_id=player_id).first()
@@ -21,6 +23,48 @@ def update_intimacy(boss_id, player_id, amount):
             record = Intimacy(boss_id=boss_id, player_id=player_id, value=amount)
             db.session.add(record)
     return record
+
+
+def rebuild_intimacy_from_gifts(operator_id=None):
+    """
+    按礼物订单重建亲密度：
+    - 仅统计 status='paid' 的礼物订单
+    - 全量覆盖 intimacy 表（用于修复历史脏数据）
+    """
+    Intimacy.query.delete(synchronize_session=False)
+
+    rows = db.session.query(
+        GiftOrder.boss_id,
+        GiftOrder.player_id,
+        func.sum(GiftOrder.total_price).label('value'),
+    ).filter(
+        GiftOrder.status == 'paid'
+    ).group_by(
+        GiftOrder.boss_id,
+        GiftOrder.player_id
+    ).all()
+
+    created = 0
+    for boss_id, player_id, value in rows:
+        amount = Decimal(str(value or 0))
+        if amount <= 0:
+            continue
+        db.session.add(Intimacy(
+            boss_id=boss_id,
+            player_id=player_id,
+            value=amount,
+        ))
+        created += 1
+
+    if operator_id:
+        log_operation(
+            operator_id=operator_id,
+            action_type='intimacy_rebuild',
+            target_type='intimacy',
+            target_id=0,
+            detail=f'按礼物订单重建亲密度，共 {created} 条',
+        )
+    return created
 
 
 def clear_intimacy(before_date, operator_id=None):

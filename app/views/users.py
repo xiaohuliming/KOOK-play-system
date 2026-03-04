@@ -254,39 +254,72 @@ def detail(user_id):
 def sync_kook_username(user_id):
     """按已绑定 KOOK ID 同步最新 KOOK 名称/头像"""
     user = User.query.get_or_404(user_id)
-    if not user.kook_id:
-        flash('该用户未绑定 KOOK ID', 'error')
-        return redirect(request.referrer or url_for('users.index'))
-
-    from app.services.kook_service import fetch_kook_user
-    kook_username, avatar_url, error = fetch_kook_user(user.kook_id)
-    if error:
+    ok, changed, error, old_name, new_name = _sync_user_kook_profile(user)
+    if not ok:
         flash(f'同步失败: {error}', 'error')
         return redirect(request.referrer or url_for('users.index'))
-
-    old_name = user.kook_username or ''
-    old_avatar = user.avatar or ''
-    user.kook_username = kook_username
-    user.kook_bound = True
-    if avatar_url:
-        user.avatar = avatar_url
-    db.session.commit()
 
     log_operation(
         current_user.id,
         'user_sync_kook_username',
         'user',
         user.id,
-        f'同步KOOK名称: {old_name or "-"} -> {kook_username or "-"}',
+        f'同步KOOK名称: {old_name or "-"} -> {new_name or "-"}',
     )
     db.session.commit()
 
-    if (not user.nickname) or (old_name and user.nickname == old_name):
-        user.nickname = kook_username or user.nickname
-        db.session.commit()
-
-    changed = (old_name != (kook_username or '')) or (bool(avatar_url) and old_avatar != avatar_url)
     flash('已同步最新 KOOK 用户信息' if changed else 'KOOK 用户信息已是最新', 'success')
+    return redirect(request.referrer or url_for('users.index'))
+
+
+@users_bp.route('/sync_kook_usernames', methods=['POST'])
+@login_required
+@staff_required
+def sync_kook_usernames():
+    """一键批量同步所有已绑定 KOOK ID 的用户名称/头像。"""
+    users = User.query.filter(
+        User.kook_id.isnot(None),
+        User.kook_id != ''
+    ).all()
+
+    if not users:
+        flash('没有可同步的用户（未找到已绑定 KOOK ID 的账号）', 'error')
+        return redirect(request.referrer or url_for('users.index'))
+
+    success_count = 0
+    updated_count = 0
+    failed_count = 0
+    error_samples = []
+
+    for user in users:
+        ok, changed, error, old_name, new_name = _sync_user_kook_profile(user)
+        if not ok:
+            failed_count += 1
+            if len(error_samples) < 3:
+                error_samples.append(f'{user.nickname or user.username}: {error}')
+            continue
+
+        success_count += 1
+        if changed:
+            updated_count += 1
+
+        log_operation(
+            current_user.id,
+            'user_sync_kook_username',
+            'user',
+            user.id,
+            f'批量同步KOOK名称: {old_name or "-"} -> {new_name or "-"}',
+        )
+
+    db.session.commit()
+
+    summary = (
+        f'批量同步完成：共 {len(users)} 个，成功 {success_count} 个，'
+        f'有更新 {updated_count} 个，失败 {failed_count} 个'
+    )
+    flash(summary, 'success' if failed_count == 0 else 'error')
+    if error_samples:
+        flash('失败示例：' + '；'.join(error_samples), 'error')
     return redirect(request.referrer or url_for('users.index'))
 
 
@@ -519,3 +552,27 @@ def delete_intimacy(user_id, intimacy_id):
     db.session.commit()
     flash('亲密度已删除', 'success')
     return redirect(url_for('users.detail', user_id=user_id, tab='intimacy'))
+def _sync_user_kook_profile(user):
+    """按用户已保存的 KOOK ID 拉取并更新 KOOK 名称/头像。"""
+    if not user.kook_id:
+        return False, False, '该用户未绑定 KOOK ID', '', ''
+
+    from app.services.kook_service import fetch_kook_user
+    kook_username, avatar_url, error = fetch_kook_user(user.kook_id)
+    if error:
+        return False, False, error, user.kook_username or '', user.kook_username or ''
+
+    old_name = user.kook_username or ''
+    old_avatar = user.avatar or ''
+
+    user.kook_username = kook_username
+    user.kook_bound = True
+    if avatar_url:
+        user.avatar = avatar_url
+
+    if (not user.nickname) or (old_name and user.nickname == old_name):
+        user.nickname = kook_username or user.nickname
+
+    changed = (old_name != (kook_username or '')) or (bool(avatar_url) and old_avatar != avatar_url)
+    return True, changed, None, old_name, (kook_username or '')
+
