@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app
 from flask_login import login_required, current_user
-from app.models.finance import WithdrawRequest, CommissionLog
+from app.models.finance import WithdrawRequest, CommissionLog, BalanceLog
 from app.extensions import db
 from app.utils.permissions import admin_required
 from datetime import datetime
@@ -95,10 +95,10 @@ def _get_saved_withdraw_payment(user_id):
 def index():
     if current_user.is_admin:
         return redirect(url_for('finance.withdraw_list'))
-    if current_user.is_staff:
-        flash('客服无权访问财务中心', 'error')
-        return redirect(url_for('dashboard.index'))
-    return redirect(url_for('finance.my_wallet'))
+    if current_user.is_god or current_user.is_player:
+        return redirect(url_for('finance.my_wallet'))
+    flash('无权访问财务中心', 'error')
+    return redirect(url_for('dashboard.index'))
 
 @finance_bp.route('/wallet')
 @login_required
@@ -260,5 +260,35 @@ def audit_withdraw(request_id):
     except Exception as e:
         db.session.rollback()
         flash(f'操作失败: {str(e)}', 'error')
-        
+
     return redirect(url_for('finance.withdraw_list'))
+
+
+@finance_bp.route('/balance_logs')
+@login_required
+def balance_detail():
+    """嗯呢币余额明细（老板可见）"""
+    page = request.args.get('page', 1, type=int)
+    change_type = request.args.get('type', '')
+
+    query = BalanceLog.query.filter_by(user_id=current_user.id)
+    if change_type:
+        query = query.filter_by(change_type=change_type)
+
+    logs = query.order_by(BalanceLog.created_at.desc()).paginate(page=page, per_page=20)
+    return render_template('finance/balance_detail.html', logs=logs, current_type=change_type)
+
+
+@finance_bp.route('/commission_logs')
+@login_required
+def commission_detail():
+    """小猪粮余额明细（陪玩/客服可见）"""
+    page = request.args.get('page', 1, type=int)
+    change_type = request.args.get('type', '')
+
+    query = CommissionLog.query.filter_by(user_id=current_user.id)
+    if change_type:
+        query = query.filter_by(change_type=change_type)
+
+    logs = query.order_by(CommissionLog.created_at.desc()).paginate(page=page, per_page=20)
+    return render_template('finance/commission_detail.html', logs=logs, current_type=change_type)

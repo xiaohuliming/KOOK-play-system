@@ -116,6 +116,10 @@
        class="flex-1 text-center px-4 py-2.5 rounded-xl text-sm font-medium transition-all {% if current_tab == 'orders' %}bg-white/80 dark:bg-slate-700/80 text-purple-600 dark:text-purple-400 shadow-sm{% else %}text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200{% endif %}">
       订单详细
     </a>
+    <a href="?tab=wallet"
+       class="flex-1 text-center px-4 py-2.5 rounded-xl text-sm font-medium transition-all {% if current_tab == 'wallet' %}bg-white/80 dark:bg-slate-700/80 text-purple-600 dark:text-purple-400 shadow-sm{% else %}text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200{% endif %}">
+      余额明细
+    </a>
     {% if current_user.is_player %}
     <a href="?tab=earnings"
        class="flex-1 text-center px-4 py-2.5 rounded-xl text-sm font-medium transition-all {% if current_tab == 'earnings' %}bg-white/80 dark:bg-slate-700/80 text-purple-600 dark:text-purple-400 shadow-sm{% else %}text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200{% endif %}">
@@ -278,6 +282,134 @@
     </form>
   </div>
 
+  {% endif %}
+
+  {# ====== 余额明细 Tab ====== #}
+  {% if current_tab == 'wallet' %}
+  <div class="glass-card p-8 space-y-6">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <h2 class="text-xl font-bold tracking-tight text-slate-800 dark:text-white flex items-center gap-2">
+        <i data-lucide="wallet-cards" width="22" height="22" class="text-purple-500"></i>
+        余额明细
+      </h2>
+      <form method="GET" class="flex items-center gap-2 flex-wrap">
+        <input type="hidden" name="tab" value="wallet" />
+        <input type="date" name="start_date" value="{{ start_date }}"
+               class="px-3 py-2 bg-white/40 dark:bg-slate-800/40 border border-white/60 dark:border-slate-700/50 backdrop-blur-md rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 text-slate-800 dark:text-slate-200" />
+        <span class="text-slate-400 text-sm">至</span>
+        <input type="date" name="end_date" value="{{ end_date }}"
+               class="px-3 py-2 bg-white/40 dark:bg-slate-800/40 border border-white/60 dark:border-slate-700/50 backdrop-blur-md rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 text-slate-800 dark:text-slate-200" />
+        <button type="submit" class="px-4 py-2 bg-purple-600 text-white rounded-xl text-sm font-medium hover:bg-purple-700 transition-colors">筛选</button>
+        {% if start_date or end_date %}
+        <a href="?tab=wallet" class="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">清除</a>
+        {% endif %}
+      </form>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-base font-bold text-slate-800 dark:text-white">嗯呢币流水</h3>
+          <a href="{{ url_for('finance.balance_detail') }}" class="text-xs text-blue-600 hover:text-blue-700">查看全部</a>
+        </div>
+        <div class="overflow-x-auto rounded-xl border border-white/40 dark:border-slate-700/50">
+          <table class="w-full text-left border-collapse min-w-[560px]">
+            <thead>
+              <tr class="text-xs text-slate-400 border-b border-white/40 dark:border-slate-700/50">
+                <th class="py-3 px-3 font-medium">时间</th>
+                <th class="py-3 px-3 font-medium">类型</th>
+                <th class="py-3 px-3 font-medium">金额</th>
+                <th class="py-3 px-3 font-medium">余额</th>
+                <th class="py-3 px-3 font-medium">备注</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if balance_logs and balance_logs.items %}
+              {% for log in balance_logs.items %}
+              <tr class="border-b border-white/20 dark:border-slate-700/50 text-sm">
+                <td class="py-3 px-3 text-slate-500 dark:text-slate-400">{{ fmt_dt(log.created_at, '%m-%d %H:%M') }}</td>
+                <td class="py-3 px-3 text-slate-700 dark:text-slate-300">
+                  {% set t = {'recharge':'充值','consume':'消费','gift_send':'赠金/赠送','refund':'退款','admin_adjust':'管理变账','exchange_in':'转换转入','exchange_out':'转换转出'} %}
+                  {{ t.get(log.change_type, log.change_type) }}
+                </td>
+                <td class="py-3 px-3 font-bold {% if log.amount >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
+                  {% if log.amount >= 0 %}+{% endif %}{{ "%.2f"|format(log.amount) }}
+                </td>
+                <td class="py-3 px-3 text-slate-800 dark:text-slate-200">{{ "%.2f"|format(log.balance_after) }}</td>
+                <td class="py-3 px-3 text-slate-500 dark:text-slate-400 max-w-[220px] truncate">{{ log.reason or '--' }}</td>
+              </tr>
+              {% endfor %}
+              {% else %}
+              <tr><td colspan="5" class="py-8 text-center text-slate-400 text-sm">暂无嗯呢币记录</td></tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+        {% if balance_logs and balance_logs.pages > 1 %}
+        <div class="flex flex-wrap items-center justify-center gap-2">
+          {% if balance_logs.has_prev %}
+          <a href="?tab=wallet&balance_page={{ balance_logs.prev_num }}&bean_page={{ bean_logs.page if bean_logs else 1 }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}" class="px-3 py-1 rounded-xl bg-white/40 dark:bg-slate-800/40 border border-white/60 dark:border-slate-700/50 text-xs">上一页</a>
+          {% endif %}
+          <span class="text-xs text-slate-500">{{ balance_logs.page }} / {{ balance_logs.pages }}</span>
+          {% if balance_logs.has_next %}
+          <a href="?tab=wallet&balance_page={{ balance_logs.next_num }}&bean_page={{ bean_logs.page if bean_logs else 1 }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}" class="px-3 py-1 rounded-xl bg-white/40 dark:bg-slate-800/40 border border-white/60 dark:border-slate-700/50 text-xs">下一页</a>
+          {% endif %}
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-base font-bold text-slate-800 dark:text-white">小猪粮流水</h3>
+          <a href="{{ url_for('finance.commission_detail') }}" class="text-xs text-purple-600 hover:text-purple-700">查看全部</a>
+        </div>
+        <div class="overflow-x-auto rounded-xl border border-white/40 dark:border-slate-700/50">
+          <table class="w-full text-left border-collapse min-w-[560px]">
+            <thead>
+              <tr class="text-xs text-slate-400 border-b border-white/40 dark:border-slate-700/50">
+                <th class="py-3 px-3 font-medium">时间</th>
+                <th class="py-3 px-3 font-medium">类型</th>
+                <th class="py-3 px-3 font-medium">金额</th>
+                <th class="py-3 px-3 font-medium">余额</th>
+                <th class="py-3 px-3 font-medium">备注</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if bean_logs and bean_logs.items %}
+              {% for log in bean_logs.items %}
+              <tr class="border-b border-white/20 dark:border-slate-700/50 text-sm">
+                <td class="py-3 px-3 text-slate-500 dark:text-slate-400">{{ fmt_dt(log.created_at, '%m-%d %H:%M') }}</td>
+                <td class="py-3 px-3 text-slate-700 dark:text-slate-300">
+                  {% set t = {'order_income':'订单收入','gift_income':'礼物收入','withdraw':'提现','refund_deduct':'退款扣回','admin_adjust':'管理调整','withdraw_freeze':'提现冻结','exchange_in':'转换转入','exchange_out':'转换转出'} %}
+                  {{ t.get(log.change_type, log.change_type) }}
+                </td>
+                <td class="py-3 px-3 font-bold {% if log.amount >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
+                  {% if log.amount >= 0 %}+{% endif %}{{ "%.2f"|format(log.amount) }}
+                </td>
+                <td class="py-3 px-3 text-slate-800 dark:text-slate-200">{{ "%.2f"|format(log.balance_after) }}</td>
+                <td class="py-3 px-3 text-slate-500 dark:text-slate-400 max-w-[220px] truncate">{{ log.reason or '--' }}</td>
+              </tr>
+              {% endfor %}
+              {% else %}
+              <tr><td colspan="5" class="py-8 text-center text-slate-400 text-sm">暂无小猪粮记录</td></tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+        {% if bean_logs and bean_logs.pages > 1 %}
+        <div class="flex flex-wrap items-center justify-center gap-2">
+          {% if bean_logs.has_prev %}
+          <a href="?tab=wallet&bean_page={{ bean_logs.prev_num }}&balance_page={{ balance_logs.page if balance_logs else 1 }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}" class="px-3 py-1 rounded-xl bg-white/40 dark:bg-slate-800/40 border border-white/60 dark:border-slate-700/50 text-xs">上一页</a>
+          {% endif %}
+          <span class="text-xs text-slate-500">{{ bean_logs.page }} / {{ bean_logs.pages }}</span>
+          {% if bean_logs.has_next %}
+          <a href="?tab=wallet&bean_page={{ bean_logs.next_num }}&balance_page={{ balance_logs.page if balance_logs else 1 }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}" class="px-3 py-1 rounded-xl bg-white/40 dark:bg-slate-800/40 border border-white/60 dark:border-slate-700/50 text-xs">下一页</a>
+          {% endif %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
   {% endif %}
 
   {# ====== 订单详细 Tab ====== #}

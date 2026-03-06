@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, flash, redirect, url_for
 from flask_login import login_required, current_user
 from datetime import datetime
 from app.models.order import Order
-from app.models.finance import CommissionLog
+from app.models.finance import CommissionLog, BalanceLog
 from app.extensions import db
 
 profile_bp = Blueprint('profile', __name__)
@@ -14,9 +14,13 @@ def index():
     start_date = request.args.get('start_date', '')
     end_date = request.args.get('end_date', '')
     page = request.args.get('page', 1, type=int)
+    balance_page = request.args.get('balance_page', 1, type=int)
+    bean_page = request.args.get('bean_page', 1, type=int)
 
     orders = None
     earnings = None
+    balance_logs = None
+    bean_logs = None
 
     if current_tab == 'orders':
         # 根据主角色查询订单，避免默认身份标签导致错位
@@ -68,10 +72,38 @@ def index():
 
         earnings = query.order_by(CommissionLog.created_at.desc()).paginate(page=page, per_page=10, error_out=False)
 
+    elif current_tab == 'wallet':
+        balance_query = BalanceLog.query.filter(BalanceLog.user_id == current_user.id)
+        bean_query = CommissionLog.query.filter(CommissionLog.user_id == current_user.id)
+
+        if start_date:
+            try:
+                start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+                balance_query = balance_query.filter(BalanceLog.created_at >= start_dt)
+                bean_query = bean_query.filter(CommissionLog.created_at >= start_dt)
+            except ValueError:
+                pass
+        if end_date:
+            try:
+                end_dt = datetime.strptime(end_date, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
+                balance_query = balance_query.filter(BalanceLog.created_at <= end_dt)
+                bean_query = bean_query.filter(CommissionLog.created_at <= end_dt)
+            except ValueError:
+                pass
+
+        balance_logs = balance_query.order_by(BalanceLog.created_at.desc()).paginate(
+            page=balance_page, per_page=10, error_out=False
+        )
+        bean_logs = bean_query.order_by(CommissionLog.created_at.desc()).paginate(
+            page=bean_page, per_page=10, error_out=False
+        )
+
     return render_template('profile/index.html',
                            current_tab=current_tab,
                            orders=orders,
                            earnings=earnings,
+                           balance_logs=balance_logs,
+                           bean_logs=bean_logs,
                            start_date=start_date,
                            end_date=end_date)
 

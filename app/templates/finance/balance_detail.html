@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block header_title %}嗯呢币余额明细{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+  <div class="glass-card p-6">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+      <h2 class="text-lg font-bold text-slate-800 dark:text-white">嗯呢币余额明细</h2>
+      <a href="{{ url_for('profile.index', tab='wallet') }}" class="text-sm text-purple-600 hover:text-purple-700">返回个人中心</a>
+    </div>
+    <form method="get" class="flex gap-2 flex-wrap items-center mb-4">
+      <select name="type" class="px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm">
+        <option value="">全部类型</option>
+        <option value="recharge" {% if current_type == 'recharge' %}selected{% endif %}>充值</option>
+        <option value="consume" {% if current_type == 'consume' %}selected{% endif %}>消费</option>
+        <option value="gift_send" {% if current_type == 'gift_send' %}selected{% endif %}>赠金/赠送</option>
+        <option value="refund" {% if current_type == 'refund' %}selected{% endif %}>退款</option>
+        <option value="admin_adjust" {% if current_type == 'admin_adjust' %}selected{% endif %}>管理变账</option>
+        <option value="exchange_in" {% if current_type == 'exchange_in' %}selected{% endif %}>转换转入</option>
+        <option value="exchange_out" {% if current_type == 'exchange_out' %}selected{% endif %}>转换转出</option>
+      </select>
+      <button type="submit" class="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-sm">筛选</button>
+      {% if current_type %}
+      <a href="{{ url_for('finance.balance_detail') }}" class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-600 text-sm">清除</a>
+      {% endif %}
+    </form>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-left border-collapse min-w-[680px]">
+        <thead>
+          <tr class="text-sm text-slate-400 border-b border-white/40 dark:border-slate-700/50">
+            <th class="pb-3 font-medium">时间</th>
+            <th class="pb-3 font-medium">类型</th>
+            <th class="pb-3 font-medium">金额</th>
+            <th class="pb-3 font-medium">余额</th>
+            <th class="pb-3 font-medium">备注</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if logs.items %}
+          {% for log in logs.items %}
+          <tr class="border-b border-white/20 dark:border-slate-700/50 text-sm">
+            <td class="py-3 text-slate-500 dark:text-slate-400">{{ fmt_dt(log.created_at, '%Y-%m-%d %H:%M') }}</td>
+            <td class="py-3 text-slate-700 dark:text-slate-300">{{ log.change_type }}</td>
+            <td class="py-3 font-bold {% if log.amount >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
+              {% if log.amount >= 0 %}+{% endif %}{{ "%.2f"|format(log.amount) }}
+            </td>
+            <td class="py-3 text-slate-800 dark:text-slate-200">{{ "%.2f"|format(log.balance_after) }}</td>
+            <td class="py-3 text-slate-500 dark:text-slate-400">{{ log.reason or '-' }}</td>
+          </tr>
+          {% endfor %}
+          {% else %}
+          <tr><td colspan="5" class="py-8 text-center text-slate-400">暂无记录</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if logs.pages > 1 %}
+    <div class="mt-4 flex justify-center items-center gap-2 flex-wrap">
+      {% if logs.has_prev %}
+      <a href="{{ url_for('finance.balance_detail', page=logs.prev_num, type=current_type) }}" class="px-3 py-1 rounded-lg border border-slate-300 dark:border-slate-600 text-sm">上一页</a>
+      {% endif %}
+      <span class="text-sm text-slate-500">{{ logs.page }} / {{ logs.pages }}</span>
+      {% if logs.has_next %}
+      <a href="{{ url_for('finance.balance_detail', page=logs.next_num, type=current_type) }}" class="px-3 py-1 rounded-lg border border-slate-300 dark:border-slate-600 text-sm">下一页</a>
+      {% endif %}
+      <form method="get" class="flex items-center gap-1 ml-2">
+        {% if current_type %}<input type="hidden" name="type" value="{{ current_type }}">{% endif %}
+        <span class="text-xs text-slate-400">跳转到</span>
+        <input type="number" name="page" min="1" max="{{ logs.pages }}" value="{{ logs.page }}" class="w-16 px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs">
+        <span class="text-xs text-slate-400">页</span>
+        <button type="submit" class="px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs">跳转</button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sirus - Media Creator Portfolio</title>
+  <!-- 引入 Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- 引入 Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <style>
+    /* 全局动画样式 */
+    @keyframes marquee {
+      0% { transform: translateX(0%); }
+      100% { transform: translateX(-50%); }
+    }
+    .animate-marquee {
+      animation: marquee 20s linear infinite;
+      width: max-content;
+    }
+    @keyframes spin-slow {
+      100% { transform: rotate(360deg); }
+    }
+    .animate-spin-slow {
+      animation: spin-slow 12s linear infinite;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-[#f4f4f0] font-sans text-black selection:bg-black selection:text-[#FFE600]">
+
+  <!-- 导航栏 -->
+  <nav class="fixed top-0 w-full bg-[#f4f4f0] border-b-4 border-black z-50 flex justify-between items-center p-4 lg:px-8">
+    <div class="text-2xl font-black tracking-tighter uppercase">Sirus.</div>
+    <div class="hidden md:flex gap-6 font-bold">
+      <a href="#about" class="hover:text-[#FF007F] transition-colors">关于我</a>
+      <a href="#projects" class="hover:text-[#00E5FF] transition-colors">作品集</a>
+      <a href="#skills" class="hover:text-[#BFFF00] transition-colors">专业技能</a>
+    </div>
+    <a href="#contact" class="bg-[#FFE600] border-2 border-black px-4 py-2 font-bold shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all">
+      Let's Talk!
+    </a>
+  </nav>
+
+  <!-- Hero 区域 -->
+  <header id="about" class="pt-32 pb-20 px-6 lg:px-12 border-b-4 border-black relative overflow-hidden bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+CjxjaXJjbGUgY3g9IjIiIGN5PSIyIiByPSIyIiBmaWxsPSIjZTVlNWU1Ii8+Cjwvc3ZnPg==')]">
+    <div class="max-w-6xl mx-auto relative z-10">
+      <div class="inline-block bg-[#00E5FF] border-4 border-black px-4 py-2 font-black text-xl mb-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transform -rotate-2">
+        北京师范大学-香港浸会大学联合国际学院 (UIC)
+      </div>
+      <h1 class="text-6xl md:text-8xl lg:text-9xl font-black uppercase tracking-tighter leading-none mb-6 drop-shadow-[4px_4px_0px_rgba(0,0,0,1)]">
+        Media <br />
+        <span class="text-[#FFE600] drop-shadow-[4px_4px_0px_rgba(0,0,0,1)]" style="-webkit-text-stroke: 3px black;">Creator.</span>
+      </h1>
+      <p class="text-xl md:text-3xl font-bold max-w-2xl leading-snug bg-white border-4 border-black p-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+        你好，我是 <span class="text-[#FF007F]">Sirus</span>。<br/>
+        一名拒绝平庸的UICer。我用镜头捕捉情绪，用文字重塑视界。
+      </p>
+    </div>
+    
+    <!-- 装饰性元素 -->
+    <div class="absolute top-20 right-10 lg:right-32 animate-spin-slow text-[#BFFF00]">
+      <i data-lucide="star" class="w-24 h-24 fill-current stroke-[1.5]"></i>
+    </div>
+  </header>
+
+  <!-- 滚动横幅 (Marquee) -->
+  <div class="bg-black text-white py-4 border-b-4 border-black overflow-hidden flex whitespace-nowrap">
+    <div class="animate-marquee inline-block font-black text-2xl tracking-widest uppercase">
+      &nbsp;VIDEO PRODUCTION • PUBLIC RELATIONS • JOURNALISM • VISUAL DESIGN • DIGITAL MEDIA • CREATIVE DIRECTING • VIDEO PRODUCTION • PUBLIC RELATIONS • JOURNALISM • VISUAL DESIGN • DIGITAL MEDIA • CREATIVE DIRECTING
+    </div>
+  </div>
+
+  <!-- 项目展示区 -->
+  <section id="projects" class="py-20 px-6 lg:px-12 max-w-7xl mx-auto">
+    <h2 class="text-5xl lg:text-7xl font-black mb-12 uppercase drop-shadow-[3px_3px_0px_rgba(0,0,0,1)]">Selected <br/>Works.</h2>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
+      <!-- 项目 1 -->
+      <div class="bg-[#FF007F] border-4 border-black p-6 lg:p-8 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[4px] hover:translate-y-[4px] hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer flex flex-col justify-between group h-full min-h-[350px]">
+        <div>
+          <div class="flex justify-between items-start mb-6">
+            <div class="bg-white border-2 border-black p-3 rounded-full shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+              <i data-lucide="video" class="w-8 h-8"></i>
+            </div>
+            <span class="font-bold border-2 border-black bg-white px-3 py-1 text-sm uppercase">Video Production</span>
+          </div>
+          <h3 class="text-3xl lg:text-4xl font-black mb-4 leading-tight">《边缘发声》微纪录片</h3>
+          <p class="font-bold text-lg mb-6 line-clamp-3">深入探讨城市化进程中流动摊贩的生存现状，获校级独立影像展最佳剪辑奖。</p>
+        </div>
+        <div class="flex flex-wrap gap-2 mt-auto">
+          <span class="bg-black text-white font-bold px-3 py-1 text-sm border-2 border-transparent">#导演</span>
+          <span class="bg-black text-white font-bold px-3 py-1 text-sm border-2 border-transparent">#剪辑</span>
+          <span class="bg-black text-white font-bold px-3 py-1 text-sm border-2 border-transparent">#调色</span>
+        </div>
+      </div>
+
+      <!-- 项目 2 -->
+      <div class="bg-[#00E5FF] border-4 border-black p-6 lg:p-8 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[4px] hover:translate-y-[4px] hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer flex flex-col justify-between group h-full min-h-[350px]">
+        <div>
+          <div class="flex justify-between items-start mb-6">
+            <div class="bg-white border-2 border-black p-3 rounded-full shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+              <i data-lucide="zap" class="w-8 h-8"></i>
+            </div>
+            <span class="font-bold border-2 border-black bg-white px-3 py-1 text-sm uppercase">PR & Branding</span>
+          </div>
+          <h3 class="text-3xl lg:text-4xl font-black mb-4 leading-tight">‘Nostalgia’ 品牌重塑</h3>
+          <p class="font-bold text-lg mb-6 line-clamp-3">为大湾区本土咖啡品牌策划的一整套线上视觉升级与线下快闪公关活动方案。</p>
+        </div>
+        <div class="flex flex-wrap gap-2 mt-auto">
+          <span class="bg-black text-white font-bold px-3 py-1 text-sm border-2 border-transparent">#策划</span>
+          <span class="bg-black text-white font-bold px-3 py-1 text-sm border-2 border-transparent">#视觉统筹</span>
+          <span class="bg-black text-white font-bold px-3 py-1 text-sm border-2 border-transparent">#文案</span>
+        </div>
+      </div>
+
+      <!-- 项目 3 -->
+      <div class="bg-[#FFE600] border-4 border-black p-6 lg:p-8 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[4px] hover:translate-y-[4px] hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer flex flex-col justify-between group h-full min-h-[350px]">
+        <div>
+          <div class="flex justify-between items-start mb-6">
+            <div class="bg-white border-2 border-black p-3 rounded-full shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+              <i data-lucide="pen-tool" class="w-8 h-8"></i>
+            </div>
+            <span class="font-bold border-2 border-black bg-white px-3 py-1 text-sm uppercase">Journalism</span>
+          </div>
+          <h3 class="text-3xl lg:text-4xl font-black mb-4 leading-tight">算法时代的新闻茧房</h3>
+          <p class="font-bold text-lg mb-6 line-clamp-3">发表于UIC校报的深度特稿，通过量化问卷与深度访谈揭示大学生的信息获取焦虑。</p>
+        </div>
+        <div class="flex flex-wrap gap-2 mt-auto">
+          <span class="bg-black text-white font-bold px-3 py-1 text-sm border-2 border-transparent">#深度报道</span>
+          <span class="bg-black text-white font-bold px-3 py-1 text-sm border-2 border-transparent">#数据分析</span>
+        </div>
+      </div>
+
+      <!-- 项目 4 -->
+      <div class="bg-[#BFFF00] border-4 border-black p-6 lg:p-8 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[4px] hover:translate-y-[4px] hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer flex flex-col justify-between group h-full min-h-[350px]">
+        <div>
+          <div class="flex justify-between items-start mb-6">
+            <div class="bg-white border-2 border-black p-3 rounded-full shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+              <i data-lucide="camera" class="w-8 h-8"></i>
+            </div>
+            <span class="font-bold border-2 border-black bg-white px-3 py-1 text-sm uppercase">Photography</span>
+          </div>
+          <h3 class="text-3xl lg:text-4xl font-black mb-4 leading-tight">「重构」视觉摄影集</h3>
+          <p class="font-bold text-lg mb-6 line-clamp-3">通过超广角与拼贴手法，解构并重塑现代都市水泥森林的压抑与生命力。</p>
+        </div>
+        <div class="flex flex-wrap gap-2 mt-auto">
+          <span class="bg-black text-white font-bold px-3 py-1 text-sm border-2 border-transparent">#摄影</span>
+          <span class="bg-black text-white font-bold px-3 py-1 text-sm border-2 border-transparent">#后期合成</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 技能区 -->
+  <section id="skills" class="py-20 bg-[#FF007F] border-y-4 border-black">
+    <div class="max-w-7xl mx-auto px-6 lg:px-12 flex flex-col lg:flex-row gap-12 items-center">
+      <div class="lg:w-1/3">
+        <h2 class="text-5xl lg:text-7xl font-black text-white drop-shadow-[4px_4px_0px_rgba(0,0,0,1)]">
+          Core<br/>Arsenal.
+        </h2>
+        <p class="mt-4 font-bold text-xl text-black bg-[#FFE600] border-4 border-black inline-block p-4 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+          全栈传媒人的武器库
+        </p>
+      </div>
+      <div class="lg:w-2/3 flex flex-wrap gap-4">
+        <div class="bg-white border-4 border-black px-6 py-4 font-black text-xl lg:text-2xl shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-2 hover:bg-[#BFFF00] transition-transform cursor-default">视频剪辑 (Premiere/FCPX)</div>
+        <div class="bg-white border-4 border-black px-6 py-4 font-black text-xl lg:text-2xl shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-2 hover:bg-[#BFFF00] transition-transform cursor-default">视觉设计 (PS/AI)</div>
+        <div class="bg-white border-4 border-black px-6 py-4 font-black text-xl lg:text-2xl shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-2 hover:bg-[#BFFF00] transition-transform cursor-default">公关策划 (PR Strategy)</div>
+        <div class="bg-white border-4 border-black px-6 py-4 font-black text-xl lg:text-2xl shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-2 hover:bg-[#BFFF00] transition-transform cursor-default">新闻采写 (Journalism)</div>
+        <div class="bg-white border-4 border-black px-6 py-4 font-black text-xl lg:text-2xl shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-2 hover:bg-[#BFFF00] transition-transform cursor-default">跨文化沟通</div>
+        <div class="bg-white border-4 border-black px-6 py-4 font-black text-xl lg:text-2xl shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-2 hover:bg-[#BFFF00] transition-transform cursor-default">社交媒体运营</div>
+        <div class="bg-white border-4 border-black px-6 py-4 font-black text-xl lg:text-2xl shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-2 hover:bg-[#BFFF00] transition-transform cursor-default">摄影摄像</div>
+        <div class="bg-white border-4 border-black px-6 py-4 font-black text-xl lg:text-2xl shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-2 hover:bg-[#BFFF00] transition-transform cursor-default">AI生成提示词</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 联系区 & Footer -->
+  <footer id="contact" class="py-20 px-6 lg:px-12 bg-[#BFFF00]">
+    <div class="max-w-5xl mx-auto text-center">
+      <h2 class="text-6xl lg:text-8xl font-black uppercase mb-8 drop-shadow-[4px_4px_0px_rgba(0,0,0,1)]">
+        Ready to <br/> Create?
+      </h2>
+      <p class="text-2xl font-bold mb-12">
+        无论是一个疯狂的创意，还是一次严肃的报道，让我们开始吧。
+      </p>
+      
+      <div class="flex flex-wrap justify-center gap-6">
+        <a href="mailto:sirus@example.com" class="flex items-center gap-2 bg-white border-4 border-black px-8 py-4 font-black text-2xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:bg-[#FFE600] transition-colors">
+          <i data-lucide="mail" class="w-7 h-7"></i> Email Me
+        </a>
+        <button class="flex items-center gap-2 bg-black text-white border-4 border-black px-8 py-4 font-black text-2xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:bg-[#00E5FF] hover:text-black transition-colors">
+          <i data-lucide="instagram" class="w-7 h-7"></i> Instagram
+        </button>
+      </div>
+    </div>
+    
+    <div class="mt-20 text-center font-bold text-lg border-t-4 border-black pt-8 max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center">
+      <p>© 2026 Sirus. All rights reserved.</p>
+      <p>BNU-HKBU United International College</p>
+    </div>
+  </footer>
+
+  <!-- 初始化图标库 -->
+  <script>
+    lucide.createIcons();
+  </script>
+</body>
+</html>

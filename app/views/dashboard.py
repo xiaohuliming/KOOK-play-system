@@ -230,11 +230,15 @@ def index():
         else:
             perf_start_date = today_start
 
-        # 订单绩效：仅统计已结算(paid/pending_pay)的订单
+        # 订单绩效：
+        # - 累计订单时长：仅统计已结算(paid)
+        # - 其余绩效项维持现有口径（pending_pay + paid）
         staff_perf_raw = db.session.query(
             User,
             func.count(Order.id).label('order_count'),
-            func.coalesce(func.sum(Order.duration), 0).label('total_duration'),
+            func.coalesce(func.sum(
+                db.case((Order.status == 'paid', Order.duration), else_=0)
+            ), 0).label('total_duration'),
             # 常规陪玩订单数(1元/单)
             func.coalesce(func.sum(
                 db.case((Order.order_type == 'normal', 1), else_=0)
