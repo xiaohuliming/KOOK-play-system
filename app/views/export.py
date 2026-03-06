@@ -22,6 +22,18 @@ def _send_excel(output, filename):
                      as_attachment=True, download_name=filename)
 
 
+def _send_zip(output, filename):
+    return send_file(output, mimetype='application/zip', as_attachment=True, download_name=filename)
+
+
+@export_bp.route('/all')
+@login_required
+@admin_required
+def export_all():
+    output = export_service.export_all_tables_zip()
+    return _send_zip(output, f'全量数据导出_{datetime.now().strftime("%Y%m%d_%H%M%S")}.zip')
+
+
 @export_bp.route('/users')
 @login_required
 @admin_required

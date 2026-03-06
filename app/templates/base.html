@@ -203,7 +203,7 @@
       {# 底部导出 - 管理员+ #}
       <div class="p-4 mt-auto">
         {% if current_user.is_admin %}
-        <a href="{{ url_for('export.export_users') }}" class="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-slate-500 dark:text-slate-400 hover:bg-white/30 dark:hover:bg-slate-800/30 transition-all duration-300">
+        <a href="{{ url_for('export.export_all') }}" class="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-slate-500 dark:text-slate-400 hover:bg-white/30 dark:hover:bg-slate-800/30 transition-all duration-300">
           <i data-lucide="download" width="20" height="20" stroke-width="2"></i>
           <span class="text-[15px]">数据导出</span>
         </a>

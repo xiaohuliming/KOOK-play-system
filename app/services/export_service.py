@@ -2,7 +2,14 @@
 数据导出服务 (基于 openpyxl)
 """
 import io
-from datetime import datetime
+import csv
+import json
+import zipfile
+from decimal import Decimal
+from datetime import datetime, date, time
+from sqlalchemy import inspect, MetaData, Table, select
+
+from app.extensions import db
 
 try:
     from openpyxl import Workbook
@@ -28,6 +35,23 @@ def _style_header(ws, headers):
         cell.fill = header_fill
         cell.alignment = Alignment(horizontal='center')
         ws.column_dimensions[cell.column_letter].width = max(len(str(h)) * 2, 12)
+
+
+def _to_export_str(value):
+    """将不同类型值安全转换为可导出的字符串。"""
+    if value is None:
+        return ''
+    if isinstance(value, datetime):
+        return value.strftime('%Y-%m-%d %H:%M:%S')
+    if isinstance(value, date):
+        return value.strftime('%Y-%m-%d')
+    if isinstance(value, time):
+        return value.strftime('%H:%M:%S')
+    if isinstance(value, Decimal):
+        return format(value, 'f')
+    if isinstance(value, (dict, list, tuple, set)):
+        return json.dumps(value, ensure_ascii=False)
+    return str(value)
 
 
 def export_users(query=None):
@@ -174,3 +198,48 @@ def export_clock_records(query=None):
     wb.save(output)
     output.seek(0)
     return output
+
+
+def export_all_tables_zip():
+    """
+    全量导出数据库所有表：
+    - 每张表导出为一个 CSV 文件
+    - 打包为 ZIP 返回
+    """
+    inspector = inspect(db.engine)
+    table_names = sorted(inspector.get_table_names())
+    zip_buffer = io.BytesIO()
+
+    with db.engine.connect() as conn, zipfile.ZipFile(zip_buffer, mode='w', compression=zipfile.ZIP_DEFLATED) as zf:
+        manifest = {
+            'generated_at': datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC'),
+            'table_count': len(table_names),
+            'tables': [],
+        }
+
+        for table_name in table_names:
+            metadata = MetaData()
+            table = Table(table_name, metadata, autoload_with=db.engine)
+            columns = [col.name for col in table.columns]
+
+            csv_io = io.StringIO()
+            writer = csv.writer(csv_io)
+            writer.writerow(columns)
+
+            row_count = 0
+            result = conn.execute(select(table)).mappings()
+            for row in result:
+                writer.writerow([_to_export_str(row.get(col)) for col in columns])
+                row_count += 1
+
+            zf.writestr(f'{table_name}.csv', csv_io.getvalue().encode('utf-8-sig'))
+            manifest['tables'].append({
+                'table': table_name,
+                'rows': row_count,
+                'columns': columns,
+            })
+
+        zf.writestr('_manifest.json', json.dumps(manifest, ensure_ascii=False, indent=2).encode('utf-8'))
+
+    zip_buffer.seek(0)
+    return zip_buffer
