@@ -12,6 +12,27 @@ from app.services.log_service import log_operation
 from flask_login import current_user
 
 NO_VIP_DISCOUNT = Decimal('100')
+STAFF_COMMISSION_NORMAL = Decimal('1')      # 常规陪玩: 1元/单
+STAFF_COMMISSION_RATE = Decimal('0.01')     # 护航/代练/礼物: 1%
+
+
+def award_staff_commission(staff, amount, order=None, reason=''):
+    """发放客服提成到 m_bean"""
+    if not staff or not amount:
+        return
+    amount = Decimal(str(amount)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    if amount <= 0:
+        return
+    staff.m_bean += amount
+    log = CommissionLog(
+        user_id=staff.id,
+        change_type='staff_commission',
+        amount=amount,
+        balance_after=staff.m_bean,
+        order_id=order.id if order else None,
+        reason=reason,
+    )
+    db.session.add(log)
 
 
 def _get_boss_discount_percent(boss):
@@ -248,6 +269,7 @@ def create_escort_order(boss, player, project_item, price_tier, staff,
     if total_available < total_price:
         return None, '老板余额不足'
 
+    now = datetime.utcnow()
     order = Order(
         order_no=generate_order_no(),
         boss_id=boss.id,
@@ -267,7 +289,8 @@ def create_escort_order(boss, player, project_item, price_tier, staff,
         order_type=project_item.project_type,
         duration=duration_dec,
         status='pending_pay',
-        pay_time=datetime.utcnow(),
+        pay_time=now,
+        auto_confirm_at=now + timedelta(hours=24),
         remark=remark,
     )
     db.session.add(order)
@@ -283,6 +306,12 @@ def create_escort_order(boss, player, project_item, price_tier, staff,
 
     # 冻结陪玩佣金
     player.m_bean_frozen += player_earning
+
+    # 客服提成: 护航/代练 1%
+    if staff:
+        commission = total_price * STAFF_COMMISSION_RATE
+        award_staff_commission(staff, commission, order,
+                               f'护航/代练订单 {order.order_no} 提成')
 
     return order, None
 
@@ -334,7 +363,7 @@ def report_order(order, duration_hours, operator_id=None):
 def confirm_order(order, operator_id=None):
     """
     老板确认 / 24h自动确认
-    先扣老板余额，再发放佣金，状态 → paid
+    先扣老板余额，佣金冻结到陪玩账户，状态 → paid，自动冻结订单
     """
     if order.status != 'pending_confirm':
         return False, '订单状态不正确'
@@ -347,15 +376,22 @@ def confirm_order(order, operator_id=None):
     if not deduct_boss_balance(boss, order.total_price, order.order_no):
         return False, '老板余额不足，无法确认订单'
 
+    # 佣金先冻结，等待客服手动解冻后再发放
     player = order.player
-    award_player_earning(player, order.player_earning, order)
+    player.m_bean_frozen += order.player_earning
 
     order.status = 'paid'
+    order.freeze_status = 'frozen'
     order.confirm_time = datetime.utcnow()
     order.pay_time = datetime.utcnow()
 
+    # 客服提成: 常规陪玩 1元/单
+    if order.staff:
+        award_staff_commission(order.staff, STAFF_COMMISSION_NORMAL, order,
+                               f'陪玩订单 {order.order_no} 提成')
+
     log_operation(operator_id or _get_operator_id(), 'order_confirm', 'order', order.id,
-                  f'订单 {order.order_no} 已确认, 发放佣金: {order.player_earning}')
+                  f'订单 {order.order_no} 已确认, 佣金 {order.player_earning} 已冻结待解冻')
 
     return True, None
 
@@ -363,7 +399,7 @@ def confirm_order(order, operator_id=None):
 def settle_escort_order(order):
     """
     结算护航/代练订单:
-    将冻结佣金(m_bean_frozen)转为可用小猪粮(m_bean), 状态 → paid
+    状态 → paid，自动冻结订单，佣金保持在 m_bean_frozen 中等待手动解冻
     """
     if order.status != 'pending_pay':
         return False, '订单状态不正确，仅待结算订单可结算'
@@ -374,22 +410,13 @@ def settle_escort_order(order):
     if order.is_frozen:
         return False, '订单已冻结，请先解冻后再结算'
 
-    player = order.player
-    earning = order.player_earning
-
-    # 从冻结转为可用
-    if player.m_bean_frozen >= earning:
-        player.m_bean_frozen -= earning
-    else:
-        player.m_bean_frozen = Decimal('0')
-
-    award_player_earning(player, earning, order)
-
+    # 佣金保留在 m_bean_frozen 中，不转为可用；等待客服手动解冻
     order.status = 'paid'
+    order.freeze_status = 'frozen'
     order.confirm_time = datetime.utcnow()
 
     log_operation(_get_operator_id(), 'order_settle', 'order', order.id,
-                  f'订单 {order.order_no} 结算完成, 佣金: {earning}')
+                  f'订单 {order.order_no} 结算完成, 佣金 {order.player_earning} 已冻结待解冻')
 
     return True, None
 
@@ -438,11 +465,30 @@ def freeze_order(order):
 
 
 def unfreeze_order(order):
-    """解冻订单"""
+    """解冻订单；若订单已结算(paid)，同时将冻结佣金释放给陪玩"""
     if order.freeze_status != 'frozen':
         return False, '订单未冻结'
+
     order.freeze_status = 'normal'
-    log_operation(_get_operator_id(), 'order_unfreeze', 'order', order.id, f'解冻订单 {order.order_no}')
+
+    # 已结算订单解冻时，释放冻结的佣金
+    if order.status == 'paid' and order.player_earning > 0:
+        player = order.player
+        earning = order.player_earning
+
+        if player.m_bean_frozen >= earning:
+            player.m_bean_frozen -= earning
+        else:
+            player.m_bean_frozen = Decimal('0')
+
+        award_player_earning(player, earning, order)
+
+        log_operation(_get_operator_id(), 'order_unfreeze', 'order', order.id,
+                      f'解冻订单 {order.order_no}, 佣金 {earning} 已发放')
+    else:
+        log_operation(_get_operator_id(), 'order_unfreeze', 'order', order.id,
+                      f'解冻订单 {order.order_no}')
+
     return True, None
 
 

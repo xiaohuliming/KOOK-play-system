@@ -116,6 +116,12 @@ def send_gift(boss, player, gift, quantity, staff=None):
     except Exception:
         pass
 
+    # 客服提成: 礼物 1%
+    if staff:
+        from app.services.order_service import award_staff_commission, STAFF_COMMISSION_RATE
+        commission = total_price * STAFF_COMMISSION_RATE
+        award_staff_commission(staff, commission, reason=f'礼物订单 #{gift_order.id} 提成')
+
     # 操作日志
     if staff:
         log_operation(

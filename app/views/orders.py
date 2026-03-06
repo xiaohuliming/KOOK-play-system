@@ -184,7 +184,7 @@ def dispatch():
             db.session.commit()
             # KOOK 推送: 护航/代练派单通知（不再推送老板建单私信）
             kook_service.push_escort_dispatch(order)
-            flash(f'护航/代练订单已创建并扣款: {order.order_no}', 'success')
+            flash(f'护航/代练订单已创建并扣款: {order.order_no}，24h后自动结算', 'success')
         else:
             order, error = order_service.create_normal_order(
                 boss=boss, player=player, project_item=project_item,
@@ -302,7 +302,7 @@ def confirm(order_id):
         db.session.commit()
         # KOOK 推送: 确认通知给陪玩
         kook_service.push_order_confirm(order)
-        flash('订单已确认，佣金已发放', 'success')
+        flash('订单已确认，佣金已冻结待解冻', 'success')
 
     return redirect(request.referrer or url_for('orders.index'))
 
@@ -331,7 +331,10 @@ def order_action(order_id, action):
         success, error = order_service.unfreeze_order(order)
         if success:
             db.session.commit()
-            flash('订单已解冻', 'success')
+            if order.status == 'paid':
+                flash('订单已解冻，佣金已发放', 'success')
+            else:
+                flash('订单已解冻', 'success')
         else:
             flash(error, 'error')
 
@@ -344,7 +347,7 @@ def order_action(order_id, action):
             db.session.commit()
             # KOOK 推送: 结算通知给陪玩
             kook_service.push_order_settle(order)
-            flash('订单已结算，佣金已发放', 'success')
+            flash('订单已结算，佣金已冻结待解冻', 'success')
         else:
             flash(error, 'error')
 

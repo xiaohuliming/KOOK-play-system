@@ -230,21 +230,61 @@ def index():
         else:
             perf_start_date = today_start
 
+        # 订单绩效：仅统计已结算(paid/pending_pay)的订单
         staff_perf_raw = db.session.query(
             User,
             func.count(Order.id).label('order_count'),
-            func.coalesce(func.sum(Order.duration), 0).label('total_duration')
+            func.coalesce(func.sum(Order.duration), 0).label('total_duration'),
+            # 常规陪玩订单数(1元/单)
+            func.coalesce(func.sum(
+                db.case((Order.order_type == 'normal', 1), else_=0)
+            ), 0).label('normal_count'),
+            # 护航/代练订单总额(1%)
+            func.coalesce(func.sum(
+                db.case((Order.order_type.in_(['escort', 'training']), Order.total_price), else_=0)
+            ), 0).label('escort_total'),
         ).join(Order, User.id == Order.staff_id).filter(
-            Order.created_at >= perf_start_date
+            Order.created_at >= perf_start_date,
+            Order.status.in_(['pending_pay', 'paid']),
         ).group_by(User.id).all()
 
+        # 礼物派发绩效：按客服分组
+        gift_perf_raw = db.session.query(
+            GiftOrder.staff_id,
+            func.count(GiftOrder.id).label('gift_count'),
+            func.coalesce(func.sum(GiftOrder.total_price), 0).label('gift_total'),
+        ).filter(
+            GiftOrder.staff_id.isnot(None),
+            GiftOrder.status == 'paid',
+            GiftOrder.created_at >= perf_start_date,
+        ).group_by(GiftOrder.staff_id).all()
+        gift_map = {row.staff_id: {'gift_count': row.gift_count, 'gift_total': float(row.gift_total)} for row in gift_perf_raw}
+
         staff_perf = []
-        for staff_user, order_count, total_duration in staff_perf_raw:
+        for staff_user, order_count, total_duration, normal_count, escort_total in staff_perf_raw:
+            gd = gift_map.pop(staff_user.id, {'gift_count': 0, 'gift_total': 0})
+            # 提成: 常规1元/单 + 护航/代练1% + 礼物1%
+            commission = float(normal_count or 0) * 1.0 + float(escort_total or 0) * 0.01 + gd['gift_total'] * 0.01
             staff_perf.append({
                 'user': staff_user,
                 'order_count': order_count,
                 'total_duration': float(total_duration),
+                'gift_count': gd['gift_count'],
+                'commission': round(commission, 2),
             })
+
+        # 补充只派发了礼物但没有订单的客服
+        for staff_id, gd in gift_map.items():
+            staff_user = db.session.get(User, staff_id)
+            if staff_user:
+                commission = gd['gift_total'] * 0.01
+                staff_perf.append({
+                    'user': staff_user,
+                    'order_count': 0,
+                    'total_duration': 0,
+                    'gift_count': gd['gift_count'],
+                    'commission': round(commission, 2),
+                })
 
     return render_template('dashboard/index.html',
                            today_revenue=today_revenue,
