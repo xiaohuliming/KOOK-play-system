@@ -17,12 +17,22 @@ STAFF_COMMISSION_RATE = Decimal('0.01')     # 护航/代练/礼物: 1%
 
 
 def award_staff_commission(staff, amount, order=None, reason=''):
-    """发放客服提成到 m_bean"""
+    """发放客服提成到 m_bean（同一订单不重复发放）"""
     if not staff or not amount:
         return
     amount = Decimal(str(amount)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     if amount <= 0:
         return
+
+    # 防重复: 检查该订单是否已发过客服提成
+    if order:
+        exists = CommissionLog.query.filter_by(
+            order_id=order.id,
+            change_type='staff_commission',
+        ).first()
+        if exists:
+            return
+
     staff.m_bean += amount
     log = CommissionLog(
         user_id=staff.id,
@@ -307,11 +317,7 @@ def create_escort_order(boss, player, project_item, price_tier, staff,
     # 冻结陪玩佣金
     player.m_bean_frozen += player_earning
 
-    # 客服提成: 护航/代练 1%
-    if staff:
-        commission = total_price * STAFF_COMMISSION_RATE
-        award_staff_commission(staff, commission, order,
-                               f'护航/代练订单 {order.order_no} 提成')
+    # 客服提成在结算(settle)时发放，创建时不发
 
     return order, None
 
@@ -414,6 +420,12 @@ def settle_escort_order(order):
     order.status = 'paid'
     order.freeze_status = 'frozen'
     order.confirm_time = datetime.utcnow()
+
+    # 客服提成: 护航/代练 1%（结算时发放，防重复由 award_staff_commission 保证）
+    if order.staff:
+        commission = order.total_price * STAFF_COMMISSION_RATE
+        award_staff_commission(order.staff, commission, order,
+                               f'护航/代练订单 {order.order_no} 提成')
 
     log_operation(_get_operator_id(), 'order_settle', 'order', order.id,
                   f'订单 {order.order_no} 结算完成, 佣金 {order.player_earning} 已冻结待解冻')
