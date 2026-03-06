@@ -4,6 +4,24 @@
 
 {% block content %}
 <div class="space-y-6 mt-4">
+  <!-- 顶部统计 -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="glass-card p-4">
+      <p class="text-sm text-slate-500 dark:text-slate-400">提现总额</p>
+      <p class="mt-2 text-2xl font-bold text-slate-900 dark:text-white">¥{{ "%.2f"|format(stats.total_withdraw_amount) }}</p>
+      <p class="mt-1 text-xs text-slate-400">全部申请累计</p>
+    </div>
+    <div class="glass-card p-4">
+      <p class="text-sm text-slate-500 dark:text-slate-400">待发放</p>
+      <p class="mt-2 text-2xl font-bold text-amber-600 dark:text-amber-300">¥{{ "%.2f"|format(stats.pending_withdraw_amount) }}</p>
+      <p class="mt-1 text-xs text-slate-400">待处理 {{ stats.pending_withdraw_count }} 笔</p>
+    </div>
+    <div class="glass-card p-4">
+      <p class="text-sm text-slate-500 dark:text-slate-400">已发放</p>
+      <p class="mt-2 text-2xl font-bold text-green-600 dark:text-green-300">¥{{ "%.2f"|format(stats.paid_withdraw_amount) }}</p>
+      <p class="mt-1 text-xs text-slate-400">已打款 {{ stats.paid_withdraw_count }} 笔</p>
+    </div>
+  </div>
 
   <!-- 筛选栏 -->
   <div class="glass-card p-4 flex flex-wrap items-center gap-4">

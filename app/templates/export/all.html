@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block header_title %}数据导出{% endblock %}
+
+{% block content %}
+<div class="space-y-6 mt-4">
+  <form method="post" class="space-y-4">
+    <div class="glass-card p-5">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="text-lg font-semibold text-slate-800 dark:text-white">选择需要导出的数据内容</h2>
+          <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">可勾选任意模块，导出为一个 Excel 文件（多 Sheet）。</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" id="select-all" class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-200 transition-colors">全选</button>
+          <button type="button" id="clear-all" class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-sm text-slate-700 dark:text-slate-200 transition-colors">清空</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      {% for item in section_options %}
+      <label class="glass-card p-4 cursor-pointer hover:bg-white/60 dark:hover:bg-slate-800/40 transition-colors">
+        <div class="flex items-start gap-3">
+          <input
+            type="checkbox"
+            name="sections"
+            value="{{ item.key }}"
+            class="mt-1 w-4 h-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500"
+            {% if item.key in selected_sections %}checked{% endif %}
+          >
+          <div>
+            <div class="font-medium text-slate-800 dark:text-white">{{ item.label }}</div>
+            <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">{{ item.desc }}</div>
+          </div>
+        </div>
+      </label>
+      {% endfor %}
+    </div>
+
+    <div class="glass-card p-4 flex flex-wrap items-center justify-between gap-3">
+      <p class="text-xs text-slate-500 dark:text-slate-400">未勾选的模块不会出现在导出结果里。</p>
+      <button type="submit" class="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium transition-colors shadow-sm">
+        导出勾选数据
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+  (function () {
+    const checkboxes = () => Array.from(document.querySelectorAll('input[name="sections"]'));
+    const selectAllBtn = document.getElementById('select-all');
+    const clearAllBtn = document.getElementById('clear-all');
+
+    if (selectAllBtn) {
+      selectAllBtn.addEventListener('click', function () {
+        checkboxes().forEach((el) => { el.checked = true; });
+      });
+    }
+    if (clearAllBtn) {
+      clearAllBtn.addEventListener('click', function () {
+        checkboxes().forEach((el) => { el.checked = false; });
+      });
+    }
+  })();
+</script>
+{% endblock %}

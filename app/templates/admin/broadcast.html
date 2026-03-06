@@ -101,7 +101,7 @@
           </tr>
         </thead>
         <tbody>
-          {% set dm_types = ['boss_recharge', 'boss_consume', 'order_dispatch', 'boss_order_dispatch', 'order_report', 'order_confirm', 'order_settle', 'escort_dispatch', 'gift_receive'] %}
+          {% set dm_types = ['boss_recharge', 'boss_consume', 'order_dispatch', 'boss_order_dispatch', 'order_report', 'order_confirm', 'order_settle', 'escort_dispatch', 'gift_receive', 'birthday_dm'] %}
           {% set has_dm = [] %}
           {% for c in configs if c.broadcast_type in dm_types %}
             {% set _ = has_dm.append(1) %}
@@ -133,6 +133,71 @@
           {% endfor %}
           {% if not has_dm %}
           <tr><td colspan="4" class="py-6 text-center text-slate-400 text-sm">暂无自定义私信模板，所有通知使用系统默认内容</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {# 定时任务 #}
+  <div class="glass-card p-6">
+    <h3 class="text-base font-bold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2">
+      <i data-lucide="calendar-clock" width="18" height="18" class="text-cyan-500"></i> 定时任务
+    </h3>
+    <p class="text-xs text-slate-400 mb-4">支持每周定时发送提醒（例如每周日 @陪玩标签 提醒提现）</p>
+    <div class="overflow-x-auto">
+      <table class="w-full text-left border-collapse">
+        <thead>
+          <tr class="text-sm text-slate-400 border-b border-white/40 dark:border-slate-700/50">
+            <th class="pb-3 font-medium">任务类型</th>
+            <th class="pb-3 font-medium">调度</th>
+            <th class="pb-3 font-medium">@角色Tag</th>
+            <th class="pb-3 font-medium">频道ID</th>
+            <th class="pb-3 font-medium">模板内容</th>
+            <th class="pb-3 font-medium">状态</th>
+            <th class="pb-3 font-medium text-right">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set schedule_types = ['weekly_withdraw_reminder'] %}
+          {% set has_schedule = [] %}
+          {% set weekday_map = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'] %}
+          {% for c in configs if c.broadcast_type in schedule_types %}
+            {% set _ = has_schedule.append(1) %}
+          <tr class="border-b border-white/20 dark:border-slate-700/50 hover:bg-white/20 dark:hover:bg-slate-700/30 transition-colors text-sm">
+            <td class="py-3">
+              <span class="px-2 py-1 bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300 text-xs rounded-full font-medium">
+                {{ broadcast_types[c.broadcast_type].label if c.broadcast_type in broadcast_types else c.broadcast_type }}
+              </span>
+            </td>
+            {% set wd = c.schedule_weekday if c.schedule_weekday is not none else 6 %}
+            <td class="py-3 text-slate-600 dark:text-slate-300 text-xs">
+              每{{ weekday_map[wd] if wd >= 0 and wd <= 6 else '周日' }} {{ c.schedule_time or '12:00' }}
+            </td>
+            <td class="py-3 text-slate-500 dark:text-slate-400 text-xs font-mono max-w-[220px] truncate">{{ c.mention_role_ids or '-' }}</td>
+            <td class="py-3 text-slate-500 dark:text-slate-400 text-xs font-mono">{{ c.channel_id or '-' }}</td>
+            <td class="py-3 text-slate-500 dark:text-slate-400 text-xs max-w-[260px]">
+              <span class="block truncate">{{ c.template or '（使用默认模板）' }}</span>
+            </td>
+            <td class="py-3">
+              {% if c.status %}
+              <span class="px-2 py-1 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 text-xs rounded-full font-medium">启用</span>
+              {% else %}
+              <span class="px-2 py-1 bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 text-xs rounded-full font-medium">停用</span>
+              {% endif %}
+            </td>
+            <td class="py-3 text-right">
+              <div class="flex justify-end gap-1">
+                <button onclick='showEditModal({{ c.id }}, "{{ c.broadcast_type }}", "{{ c.threshold }}", {{ c.template|tojson }}, "{{ c.channel_id or "" }}", {{ "true" if c.status else "false" }}, {{ c.image_url|tojson }}, "{{ c.schedule_weekday if c.schedule_weekday is not none else 6 }}", "{{ c.schedule_time or "12:00" }}", {{ (c.mention_role_ids or "")|tojson }})' class="text-purple-500 hover:text-purple-600 text-xs font-medium px-2 py-1 rounded hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors">编辑</button>
+                <form action="{{ url_for('broadcast_admin.delete', config_id=c.id) }}" method="post" class="inline">
+                  <button type="submit" onclick="return confirm('确认删除此定时任务配置?')" class="text-red-500 hover:text-red-600 text-xs font-medium px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">删除</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+          {% if not has_schedule %}
+          <tr><td colspan="7" class="py-6 text-center text-slate-400 text-sm">暂无定时任务配置</td></tr>
           {% endif %}
         </tbody>
       </table>
@@ -265,6 +330,34 @@
           class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm"
           placeholder="必填，消息发送的目标频道">
         <p class="text-[11px] text-slate-400 mt-1">已支持 @角色：先填写频道ID，再点编辑器工具栏的「@角色」即可选中并插入。</p>
+      </div>
+
+      <div id="f_schedule_wrap" class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div>
+          <label class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1 block">每周触发日</label>
+          <select name="schedule_weekday" id="f_schedule_weekday"
+            class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm">
+            <option value="0">周一</option>
+            <option value="1">周二</option>
+            <option value="2">周三</option>
+            <option value="3">周四</option>
+            <option value="4">周五</option>
+            <option value="5">周六</option>
+            <option value="6" selected>周日</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1 block">触发时间（北京）</label>
+          <input type="time" name="schedule_time" id="f_schedule_time" value="12:00"
+            class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm">
+        </div>
+        <div>
+          <label class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1 block">@角色Tag IDs（逗号分隔）</label>
+          <input type="text" name="mention_role_ids" id="f_mention_role_ids"
+            class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm"
+            placeholder="例如: 123456,789012">
+          <p class="text-[11px] text-slate-400 mt-1">将自动生成变量 <code>{roles}</code> 用于模板内容。</p>
+        </div>
       </div>
 
       {# KMarkdown 编辑器 #}
@@ -489,6 +582,7 @@
 // 播报类型元数据（从后端传入）
 const TYPES = {{ broadcast_types|tojson }};
 let ROLE_CACHE = {};
+const WEEKLY_SCHEDULE_TYPE = 'weekly_withdraw_reminder';
 
 function getRoleApiKey() {
   const channelId = (document.getElementById('f_channel')?.value || '').trim();
@@ -591,6 +685,12 @@ function onTypeChange() {
   // 显示/隐藏阈值（仅充值播报有意义）
   const thresholdWrap = document.getElementById('f_threshold_wrap');
   thresholdWrap.style.display = type === 'recharge' ? '' : 'none';
+
+  // 显示/隐藏定时任务配置
+  const scheduleWrap = document.getElementById('f_schedule_wrap');
+  if (scheduleWrap) {
+    scheduleWrap.style.display = type === WEEKLY_SCHEDULE_TYPE ? '' : 'none';
+  }
 
   // 显示/隐藏图片（模板类型不需要）
   const imageWrap = document.getElementById('f_image_wrap');
@@ -821,6 +921,9 @@ function showAddModal() {
   document.getElementById('f_threshold').value = '0';
   document.getElementById('f_template').value = '';
   document.getElementById('f_channel').value = '';
+  document.getElementById('f_schedule_weekday').value = '6';
+  document.getElementById('f_schedule_time').value = '12:00';
+  document.getElementById('f_mention_role_ids').value = '';
   document.getElementById('f_image_url').value = '';
   document.getElementById('image-preview').classList.add('hidden');
   document.getElementById('f_status').checked = true;
@@ -832,15 +935,18 @@ function showAddModal() {
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
-function showEditModal(id, type, threshold, template, channel, status, imageUrl) {
+function showEditModal(id, type, threshold, template, channel, status, imageUrl, scheduleWeekday, scheduleTime, mentionRoleIds) {
   document.getElementById('modal-title').textContent = '编辑播报配置';
   document.getElementById('config-form').action = '/admin/broadcast/' + id + '/edit';
   document.getElementById('f_type').value = type;
   document.getElementById('f_threshold').value = threshold;
   document.getElementById('f_template').value = template || '';
   document.getElementById('f_channel').value = channel;
+  document.getElementById('f_schedule_weekday').value = (scheduleWeekday !== undefined && scheduleWeekday !== null && scheduleWeekday !== '') ? String(scheduleWeekday) : '6';
+  document.getElementById('f_schedule_time').value = scheduleTime || '12:00';
+  document.getElementById('f_mention_role_ids').value = mentionRoleIds || '';
   document.getElementById('f_image_url').value = imageUrl || '';
-  document.getElementById('f_status').checked = status;
+  document.getElementById('f_status').checked = (status === true || status === 'true');
   document.getElementById('f_status_wrap').classList.remove('hidden');
   onTypeChange();
   updateImagePreview();

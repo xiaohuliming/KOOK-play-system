@@ -27,6 +27,27 @@ from app.models.operation_log import OperationLog
 from app.models.lottery import Lottery, LotteryWinner
 
 
+EXPORT_SECTION_OPTIONS = [
+    {'key': 'users', 'label': '用户详情', 'sheet': '用户详情', 'desc': '用户基础资料、钱包、身份标签'},
+    {'key': 'orders', 'label': '订单数据', 'sheet': '订单数据', 'desc': '订单全流程明细（老板/陪玩/客服/金额/时间）'},
+    {'key': 'gifts', 'label': '礼物订单', 'sheet': '礼物订单', 'desc': '礼物赠送与退款明细'},
+    {'key': 'staff', 'label': '客服数据', 'sheet': '客服数据', 'desc': '客服/管理员维度运营数据'},
+    {'key': 'players', 'label': '陪玩数据', 'sheet': '陪玩数据', 'desc': '陪玩接单/收益/提现汇总'},
+    {'key': 'bosses', 'label': '老板数据', 'sheet': '老板数据', 'desc': '老板充值/消费/下单/赠礼汇总'},
+    {'key': 'withdrawals', 'label': '提现数据', 'sheet': '提现数据', 'desc': '提现申请与审核流转'},
+    {'key': 'balance_logs', 'label': '嗯呢币流水', 'sheet': '嗯呢币流水', 'desc': '嗯呢币余额变动明细'},
+    {'key': 'commission_logs', 'label': '小猪粮流水', 'sheet': '小猪粮流水', 'desc': '小猪粮收益/提现/扣减明细'},
+    {'key': 'clocks', 'label': '打卡数据', 'sheet': '打卡数据', 'desc': '客服/管理员打卡明细'},
+    {'key': 'intimacies', 'label': '亲密度关系', 'sheet': '亲密度关系', 'desc': '老板-陪玩亲密度关系'},
+    {'key': 'lotteries', 'label': '抽奖活动', 'sheet': '抽奖活动', 'desc': '抽奖配置与活动状态'},
+    {'key': 'lottery_winners', 'label': '抽奖中奖记录', 'sheet': '抽奖中奖记录', 'desc': '抽奖中奖名单明细'},
+    {'key': 'operation_logs', 'label': '操作日志', 'sheet': '操作日志', 'desc': '后台操作审计日志'},
+    {'key': 'projects', 'label': '项目配置', 'sheet': '项目配置', 'desc': '游戏项目与档位价格'},
+]
+
+EXPORT_SECTION_KEYS = {item['key'] for item in EXPORT_SECTION_OPTIONS}
+
+
 def _style_header(ws, headers):
     """样式化表头"""
     header_font = Font(bold=True, color='FFFFFF')
@@ -291,7 +312,7 @@ def _append_sheet(wb, used_names, title, headers, rows):
     return sheet_name, len(rows)
 
 
-def export_all_tables_workbook():
+def export_all_tables_workbook(include_sections=None):
     """按业务关系导出可读型全量数据工作簿。"""
     if not HAS_OPENPYXL:
         return None
@@ -990,6 +1011,34 @@ def export_all_tables_workbook():
         info_ws.cell(row=idx, column=2, value=sheet_name)
         info_ws.cell(row=idx, column=3, value=row_count)
         info_ws.cell(row=idx, column=4, value=desc)
+
+    if include_sections:
+        selected_keys = {str(x).strip() for x in include_sections if str(x).strip() in EXPORT_SECTION_KEYS}
+        allowed_sheets = {'导出说明'}
+        for item in EXPORT_SECTION_OPTIONS:
+            if item['key'] in selected_keys:
+                allowed_sheets.add(item['sheet'])
+
+        for sheet_name in list(wb.sheetnames):
+            if sheet_name not in allowed_sheets:
+                wb.remove(wb[sheet_name])
+
+        # 重建导出说明（仅保留已勾选内容）
+        info_ws = wb['导出说明']
+        if info_ws.max_row > 0:
+            info_ws.delete_rows(1, info_ws.max_row)
+        _style_header(info_ws, ['导出时间(北京)', 'Sheet', '记录数', '说明'])
+        export_time = fmt_dt(datetime.utcnow(), '%Y-%m-%d %H:%M:%S')
+        row_idx = 2
+        for item in EXPORT_SECTION_OPTIONS:
+            if item['key'] not in selected_keys or item['sheet'] not in wb.sheetnames:
+                continue
+            ws = wb[item['sheet']]
+            info_ws.cell(row=row_idx, column=1, value=export_time)
+            info_ws.cell(row=row_idx, column=2, value=item['sheet'])
+            info_ws.cell(row=row_idx, column=3, value=max(ws.max_row - 1, 0))
+            info_ws.cell(row=row_idx, column=4, value=item['desc'])
+            row_idx += 1
 
     output = io.BytesIO()
     wb.save(output)

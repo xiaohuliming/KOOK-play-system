@@ -7,6 +7,7 @@ import logging
 import os
 import re
 import threading
+from datetime import datetime
 from urllib.parse import quote, urlparse
 
 import requests
@@ -891,6 +892,43 @@ BROADCAST_TYPES = {
         ),
         'hint': '收到礼物后私信收礼人',
     },
+    'birthday_dm': {
+        'label': '生日祝福私信',
+        'group': '私信通知',
+        'target': 'dm',
+        'color': '#EC4899',
+        'title': '生日快乐',
+        'variables': {
+            '{user}': '用户昵称',
+            '{birthday}': '生日日期（MM-DD）',
+            '{year}': '当前年份',
+        },
+        'default_template': (
+            '🎂 **生日快乐，{user}！**\n---\n'
+            '今天是你的生日（{birthday}），\n'
+            '祝你在新的一岁里天天开心、把把连胜！'
+        ),
+        'hint': '每天定时检查当日生日用户并私信祝福',
+    },
+    'weekly_withdraw_reminder': {
+        'label': '定时提现提醒',
+        'group': '定时任务',
+        'target': 'channel',
+        'color': '#06B6D4',
+        'title': '提现提醒',
+        'variables': {
+            '{weekday}': '星期几',
+            '{time}': '触发时间（HH:MM）',
+            '{roles}': '@角色提及字符串（由角色Tag自动生成）',
+            '{@all}': '@全体成员',
+            '{@here}': '@在线成员',
+        },
+        'default_template': (
+            '{roles}\n'
+            '【提现提醒】今天是{weekday}，请符合条件的陪玩及时提交提现申请。'
+        ),
+        'hint': '按周定时触发：需配置频道ID、周几、时间、@角色Tag列表',
+    },
 }
 
 
@@ -908,6 +946,20 @@ def _get_custom_template(broadcast_type):
     if config and config.template and config.template.strip():
         return config.template
     return None
+
+
+def _is_broadcast_enabled(broadcast_type):
+    """
+    广播类型开关判断：
+    - 若不存在配置记录，默认启用（兼容历史行为）
+    - 若存在配置记录，至少一条 status=True 才视为启用
+    """
+    from app.models.broadcast import BroadcastConfig
+
+    rows = BroadcastConfig.query.filter_by(broadcast_type=broadcast_type).all()
+    if not rows:
+        return True
+    return any(bool(r.status) for r in rows)
 
 
 def _render_tpl(template, variables):
@@ -1503,6 +1555,163 @@ def push_channel_event(kook_user_id, voice_channel_id, event_type='join'):
         text = _render_tpl(cfg.template or meta['default_template'], variables)
         card_json = _build_card(meta['title'], text, meta['color'], image_url=cfg.image_url)
         _async_send(_send_channel_msg, cfg.channel_id, card_json)
+
+
+def _weekday_cn(weekday: int) -> str:
+    mapping = {
+        0: '周一',
+        1: '周二',
+        2: '周三',
+        3: '周四',
+        4: '周五',
+        5: '周六',
+        6: '周日',
+    }
+    return mapping.get(int(weekday), '周日')
+
+
+def _parse_hhmm(value: str):
+    text = str(value or '').strip()
+    m = re.match(r'^(\d{1,2}):(\d{1,2})$', text)
+    if not m:
+        return None
+    hour = int(m.group(1))
+    minute = int(m.group(2))
+    if hour < 0 or hour > 23 or minute < 0 or minute > 59:
+        return None
+    return hour, minute
+
+
+def _role_mentions_from_csv(raw_ids: str) -> str:
+    parts = [p.strip() for p in str(raw_ids or '').split(',') if p.strip()]
+    if not parts:
+        return ''
+    return ' '.join([f'(rol){rid}(rol)' for rid in parts])
+
+
+def run_birthday_dm_job():
+    """
+    生日私信任务（按北京时间当日触发）。
+    返回成功发送数量。
+    """
+    from app.models.user import User
+
+    from app.utils.time_utils import to_beijing
+
+    now_bj = to_beijing(datetime.utcnow())
+    if not now_bj:
+        return 0
+    month = now_bj.month
+    day = now_bj.day
+    current_year = now_bj.year
+
+    if not _is_broadcast_enabled('birthday_dm'):
+        return 0
+
+    users = User.query.filter(
+        User.status == True,
+        User.birthday.isnot(None),
+    ).all()
+
+    sent = 0
+    meta = BROADCAST_TYPES['birthday_dm']
+    template = _get_custom_template('birthday_dm') or meta['default_template']
+    for user in users:
+        if not user.birthday:
+            continue
+        if user.birthday.month != month or user.birthday.day != day:
+            continue
+        if int(user.birthday_notified_year or 0) >= current_year:
+            continue
+        if not user.kook_id or not user.kook_bound:
+            continue
+
+        variables = {
+            'user': _fallback_display_name(user),
+            'birthday': f'{month:02d}-{day:02d}',
+            'year': str(current_year),
+        }
+        text = _render_tpl(template, variables)
+        ok = _send_direct_msg(user.kook_id, _build_card(meta['title'], text, meta['color']))
+        if ok:
+            user.birthday_notified_year = current_year
+            sent += 1
+
+    if sent > 0:
+        from app.extensions import db
+        db.session.commit()
+    return sent
+
+
+def run_weekly_withdraw_reminder_job():
+    """
+    周定时提现提醒任务（按北京时间匹配周几+时间）。
+    返回成功发送数量。
+    """
+    from app.models.broadcast import BroadcastConfig
+    from app.extensions import db
+
+    from app.utils.time_utils import to_beijing
+
+    now_bj = to_beijing(datetime.utcnow())
+    if not now_bj:
+        return 0
+    weekday = now_bj.weekday()  # 0=Mon
+    hm = (now_bj.hour, now_bj.minute)
+
+    configs = BroadcastConfig.query.filter_by(
+        broadcast_type='weekly_withdraw_reminder',
+        status=True,
+    ).all()
+    if not configs:
+        return 0
+
+    meta = BROADCAST_TYPES['weekly_withdraw_reminder']
+    sent = 0
+    for cfg in configs:
+        if not cfg.channel_id:
+            continue
+
+        cfg_weekday = int(cfg.schedule_weekday if cfg.schedule_weekday is not None else 6)
+        if cfg_weekday != weekday:
+            continue
+
+        parsed = _parse_hhmm(cfg.schedule_time or '12:00')
+        if not parsed:
+            parsed = (12, 0)
+        if parsed != hm:
+            continue
+
+        # 防重复：同一天同配置只发送一次
+        if cfg.last_sent_at:
+            from app.utils.time_utils import to_beijing
+            last_bj = to_beijing(cfg.last_sent_at)
+            if not last_bj:
+                last_bj = cfg.last_sent_at
+            if (
+                last_bj.year == now_bj.year and
+                last_bj.month == now_bj.month and
+                last_bj.day == now_bj.day
+            ):
+                continue
+
+        roles = _role_mentions_from_csv(cfg.mention_role_ids or '')
+        variables = {
+            'weekday': _weekday_cn(cfg_weekday),
+            'time': f'{parsed[0]:02d}:{parsed[1]:02d}',
+            'roles': roles or '(met)all(met)',
+            '@all': '(met)all(met)',
+            '@here': '(met)here(met)',
+        }
+        text = _render_tpl((cfg.template or meta['default_template']), variables)
+        ok = _send_channel_msg(cfg.channel_id, _build_card(meta['title'], text, meta['color'], image_url=cfg.image_url))
+        if ok:
+            cfg.last_sent_at = datetime.utcnow()
+            sent += 1
+
+    if sent > 0:
+        db.session.commit()
+    return sent
 
 
 def send_test_message(channel_id, title, content, msg_type='success'):

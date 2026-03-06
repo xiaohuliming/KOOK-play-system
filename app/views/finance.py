@@ -5,6 +5,7 @@ from app.extensions import db
 from app.utils.permissions import admin_required
 from datetime import datetime
 from decimal import Decimal
+from sqlalchemy import func
 import os
 import uuid
 from werkzeug.utils import secure_filename
@@ -200,6 +201,20 @@ def withdraw():
 @admin_required
 def withdraw_list():
     status = request.args.get('status', 'all')
+
+    total_withdraw_amount = db.session.query(
+        func.coalesce(func.sum(WithdrawRequest.amount), 0)
+    ).scalar() or Decimal('0')
+    pending_withdraw_amount = db.session.query(
+        func.coalesce(func.sum(WithdrawRequest.amount), 0)
+    ).filter(WithdrawRequest.status == 'pending').scalar() or Decimal('0')
+    paid_withdraw_amount = db.session.query(
+        func.coalesce(func.sum(WithdrawRequest.amount), 0)
+    ).filter(WithdrawRequest.status == 'paid').scalar() or Decimal('0')
+
+    pending_withdraw_count = WithdrawRequest.query.filter(WithdrawRequest.status == 'pending').count()
+    paid_withdraw_count = WithdrawRequest.query.filter(WithdrawRequest.status == 'paid').count()
+
     query = WithdrawRequest.query
     
     if status != 'all':
@@ -207,7 +222,20 @@ def withdraw_list():
         
     withdrawals = query.order_by(WithdrawRequest.created_at.desc()).paginate(page=request.args.get('page', 1, type=int), per_page=20)
     
-    return render_template('finance/withdraw_list.html', withdrawals=withdrawals, current_status=status)
+    stats = {
+        'total_withdraw_amount': total_withdraw_amount,
+        'pending_withdraw_amount': pending_withdraw_amount,
+        'paid_withdraw_amount': paid_withdraw_amount,
+        'pending_withdraw_count': pending_withdraw_count,
+        'paid_withdraw_count': paid_withdraw_count,
+    }
+
+    return render_template(
+        'finance/withdraw_list.html',
+        withdrawals=withdrawals,
+        current_status=status,
+        stats=stats,
+    )
 
 @finance_bp.route('/withdraw/<int:request_id>/audit', methods=['POST'])
 @login_required

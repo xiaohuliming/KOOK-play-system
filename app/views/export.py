@@ -1,6 +1,6 @@
 """数据导出路由"""
 from datetime import datetime
-from flask import Blueprint, send_file, flash, redirect, url_for
+from flask import Blueprint, send_file, flash, redirect, url_for, render_template, request
 from flask_login import login_required
 
 from app.utils.permissions import admin_required
@@ -22,11 +22,23 @@ def _send_excel(output, filename):
                      as_attachment=True, download_name=filename)
 
 
-@export_bp.route('/all')
+@export_bp.route('/all', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def export_all():
-    output = export_service.export_all_tables_workbook()
+    if request.method == 'GET':
+        return render_template(
+            'export/all.html',
+            section_options=export_service.EXPORT_SECTION_OPTIONS,
+            selected_sections=[item['key'] for item in export_service.EXPORT_SECTION_OPTIONS],
+        )
+
+    selected_sections = request.form.getlist('sections')
+    if not selected_sections:
+        flash('请至少勾选一项导出内容', 'error')
+        return redirect(url_for('export.export_all'))
+
+    output = export_service.export_all_tables_workbook(include_sections=selected_sections)
     return _send_excel(output, f'全量数据导出_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx')
 
 

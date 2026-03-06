@@ -182,5 +182,37 @@ def init_scheduler(app):
         replace_existing=True
     )
 
+    def birthday_dm_job():
+        """生日私信播报任务（北京时间）"""
+        with app.app_context():
+            from app.services.kook_service import run_birthday_dm_job
+            count = run_birthday_dm_job()
+            if count > 0:
+                app.logger.info(f'[Scheduler] 生日祝福私信发送 {count} 人')
+
+    def weekly_withdraw_reminder_job():
+        """周定时提现提醒任务（北京时间）"""
+        with app.app_context():
+            from app.services.kook_service import run_weekly_withdraw_reminder_job
+            count = run_weekly_withdraw_reminder_job()
+            if count > 0:
+                app.logger.info(f'[Scheduler] 定时提现提醒发送 {count} 条')
+
+    scheduler.add_job(
+        birthday_dm_job,
+        trigger=IntervalTrigger(minutes=30),
+        id='birthday_dm_job',
+        name='生日私信播报',
+        replace_existing=True
+    )
+
+    scheduler.add_job(
+        weekly_withdraw_reminder_job,
+        trigger=IntervalTrigger(minutes=1),
+        id='weekly_withdraw_reminder_job',
+        name='周定时提现提醒',
+        replace_existing=True
+    )
+
     scheduler.start()
     app.logger.info('[Scheduler] 定时任务已启动')

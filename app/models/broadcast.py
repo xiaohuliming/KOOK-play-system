@@ -19,6 +19,10 @@ class BroadcastConfig(db.Model):
 
     channel_id = db.Column(db.String(100))  # KOOK频道ID
     image_url = db.Column(db.Text, nullable=True)  # 卡片附带图片URL
+    schedule_weekday = db.Column(db.Integer, nullable=True)  # 定时任务: 周几(0=周一,6=周日)
+    schedule_time = db.Column(db.String(5), nullable=True)   # 定时任务: HH:MM
+    mention_role_ids = db.Column(db.Text, nullable=True)     # 定时任务: 角色ID列表（逗号分隔）
+    last_sent_at = db.Column(db.DateTime, nullable=True)     # 定时任务: 最近发送时间（防重复）
     status = db.Column(db.Boolean, default=True)  # 启用/禁用
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

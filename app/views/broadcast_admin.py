@@ -1,4 +1,5 @@
 from decimal import Decimal
+import re
 from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify
 from flask_login import login_required, current_user
 
@@ -9,6 +10,34 @@ from app.services.log_service import log_operation
 from app.services.kook_service import BROADCAST_TYPES, fetch_kook_role_catalog
 
 broadcast_admin_bp = Blueprint('broadcast_admin', __name__, template_folder='../templates')
+
+
+def _normalize_schedule_time(raw_value):
+    text = (raw_value or '').strip()
+    if not text:
+        return '12:00'
+    m = re.match(r'^(\d{1,2}):(\d{1,2})$', text)
+    if not m:
+        return '12:00'
+    hour = max(0, min(23, int(m.group(1))))
+    minute = max(0, min(59, int(m.group(2))))
+    return f'{hour:02d}:{minute:02d}'
+
+
+def _normalize_role_ids(raw_value):
+    if not raw_value:
+        return ''
+    parts = [p.strip() for p in str(raw_value).split(',')]
+    cleaned = []
+    seen = set()
+    for p in parts:
+        if not p:
+            continue
+        if p in seen:
+            continue
+        cleaned.append(p)
+        seen.add(p)
+    return ','.join(cleaned)
 
 
 @broadcast_admin_bp.route('/')
@@ -30,12 +59,33 @@ def add():
         flash('未知的播报类型', 'error')
         return redirect(url_for('broadcast_admin.index'))
 
+    channel_id = request.form.get('channel_id', '').strip()
+    if broadcast_type in ('recharge', 'gift', 'upgrade', 'channel_join', 'channel_leave', 'weekly_withdraw_reminder') and not channel_id:
+        flash('该播报类型需要填写 KOOK 频道ID', 'error')
+        return redirect(url_for('broadcast_admin.index'))
+
+    schedule_weekday = None
+    schedule_time = None
+    mention_role_ids = None
+    if broadcast_type == 'weekly_withdraw_reminder':
+        weekday_raw = request.form.get('schedule_weekday', '6')
+        try:
+            schedule_weekday = int(weekday_raw)
+        except Exception:
+            schedule_weekday = 6
+        schedule_weekday = max(0, min(6, schedule_weekday))
+        schedule_time = _normalize_schedule_time(request.form.get('schedule_time', '12:00'))
+        mention_role_ids = _normalize_role_ids(request.form.get('mention_role_ids', ''))
+
     config = BroadcastConfig(
         broadcast_type=broadcast_type,
         threshold=Decimal(request.form.get('threshold', '0') or '0'),
         template=request.form.get('template', ''),
-        channel_id=request.form.get('channel_id', ''),
+        channel_id=channel_id,
         image_url=request.form.get('image_url', '').strip() or None,
+        schedule_weekday=schedule_weekday,
+        schedule_time=schedule_time,
+        mention_role_ids=mention_role_ids,
         status=True,
     )
     db.session.add(config)
@@ -58,8 +108,27 @@ def edit(config_id):
     config.broadcast_type = request.form.get('broadcast_type', config.broadcast_type)
     config.threshold = Decimal(request.form.get('threshold', '0') or '0')
     config.template = request.form.get('template', '')
-    config.channel_id = request.form.get('channel_id', '')
+    config.channel_id = request.form.get('channel_id', '').strip()
+    if config.broadcast_type in ('recharge', 'gift', 'upgrade', 'channel_join', 'channel_leave', 'weekly_withdraw_reminder') and not config.channel_id:
+        flash('该播报类型需要填写 KOOK 频道ID', 'error')
+        return redirect(url_for('broadcast_admin.index'))
     config.image_url = request.form.get('image_url', '').strip() or None
+
+    if config.broadcast_type == 'weekly_withdraw_reminder':
+        weekday_raw = request.form.get('schedule_weekday', '6')
+        try:
+            config.schedule_weekday = int(weekday_raw)
+        except Exception:
+            config.schedule_weekday = 6
+        config.schedule_weekday = max(0, min(6, config.schedule_weekday))
+        config.schedule_time = _normalize_schedule_time(request.form.get('schedule_time', '12:00'))
+        config.mention_role_ids = _normalize_role_ids(request.form.get('mention_role_ids', ''))
+    else:
+        config.schedule_weekday = None
+        config.schedule_time = None
+        config.mention_role_ids = None
+        config.last_sent_at = None
+
     config.status = 'status' in request.form
     db.session.commit()
 

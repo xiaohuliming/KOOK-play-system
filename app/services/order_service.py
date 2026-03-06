@@ -369,25 +369,25 @@ def report_order(order, duration_hours, operator_id=None):
 def confirm_order(order, operator_id=None):
     """
     老板确认 / 24h自动确认
-    先扣老板余额，佣金冻结到陪玩账户，状态 → paid，自动冻结订单
+    先扣老板余额，常规陪玩单佣金直接发放，状态 → paid（不默认冻结）
     """
     if order.status != 'pending_confirm':
         return False, '订单状态不正确'
 
-    if order.is_frozen:
-        return False, '订单已冻结, 无法确认'
+    if order.order_type in ('escort', 'training'):
+        return False, '护航/代练订单不走确认流程'
 
     # 常规订单在确认时扣款
     boss = order.boss
     if not deduct_boss_balance(boss, order.total_price, order.order_no):
         return False, '老板余额不足，无法确认订单'
 
-    # 佣金先冻结，等待客服手动解冻后再发放
+    # 常规陪玩单：确认后佣金直接发放，不冻结
     player = order.player
-    player.m_bean_frozen += order.player_earning
+    award_player_earning(player, order.player_earning, order)
 
     order.status = 'paid'
-    order.freeze_status = 'frozen'
+    order.freeze_status = 'normal'
     order.confirm_time = datetime.utcnow()
     order.pay_time = datetime.utcnow()
 
@@ -397,7 +397,7 @@ def confirm_order(order, operator_id=None):
                                f'陪玩订单 {order.order_no} 提成')
 
     log_operation(operator_id or _get_operator_id(), 'order_confirm', 'order', order.id,
-                  f'订单 {order.order_no} 已确认, 佣金 {order.player_earning} 已冻结待解冻')
+                  f'订单 {order.order_no} 已确认, 佣金 {order.player_earning} 已发放')
 
     return True, None
 
@@ -488,15 +488,23 @@ def unfreeze_order(order):
         player = order.player
         earning = order.player_earning
 
-        if player.m_bean_frozen >= earning:
-            player.m_bean_frozen -= earning
+        already_awarded = CommissionLog.query.filter_by(
+            order_id=order.id,
+            change_type='order_income',
+        ).first()
+
+        if not already_awarded:
+            if player.m_bean_frozen >= earning:
+                player.m_bean_frozen -= earning
+            else:
+                player.m_bean_frozen = Decimal('0')
+
+            award_player_earning(player, earning, order)
+            log_operation(_get_operator_id(), 'order_unfreeze', 'order', order.id,
+                          f'解冻订单 {order.order_no}, 佣金 {earning} 已发放')
         else:
-            player.m_bean_frozen = Decimal('0')
-
-        award_player_earning(player, earning, order)
-
-        log_operation(_get_operator_id(), 'order_unfreeze', 'order', order.id,
-                      f'解冻订单 {order.order_no}, 佣金 {earning} 已发放')
+            log_operation(_get_operator_id(), 'order_unfreeze', 'order', order.id,
+                          f'解冻订单 {order.order_no}, 佣金已发放(跳过重复发放)')
     else:
         log_operation(_get_operator_id(), 'order_unfreeze', 'order', order.id,
                       f'解冻订单 {order.order_no}')

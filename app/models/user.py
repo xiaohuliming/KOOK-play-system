@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, date
 import uuid
 from sqlalchemy import or_, event
 from flask_login import UserMixin
@@ -52,6 +52,8 @@ class User(UserMixin, db.Model):
     benefits = db.Column(db.Text) # JSON string
     status = db.Column(db.Boolean, default=True)
     register_type = db.Column(db.String(20), default='kook') # kook, wechat, manual
+    birthday = db.Column(db.Date)  # 生日日期
+    birthday_notified_year = db.Column(db.Integer, default=0)  # 生日祝福已发送年份（防重复）
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

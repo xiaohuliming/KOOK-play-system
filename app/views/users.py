@@ -504,6 +504,36 @@ def update_info(user_id):
         elif nickname_change_denied:
             flash('客户昵称仅管理员及以上可修改', 'error')
 
+    elif action == 'update_birthday':
+        raw_birthday = (request.form.get('birthday') or '').strip()
+        if not raw_birthday:
+            user.birthday = None
+            user.birthday_notified_year = 0
+            log_operation(current_user.id, 'user_update_birthday', 'user', user.id, '清空生日日期')
+            db.session.commit()
+            flash('生日已清空', 'success')
+            return redirect(url_for('users.detail', user_id=user_id, tab='info'))
+
+        try:
+            parsed = datetime.strptime(raw_birthday, '%Y-%m-%d').date()
+        except Exception:
+            flash('生日格式无效，请使用 YYYY-MM-DD', 'error')
+            return redirect(url_for('users.detail', user_id=user_id, tab='info'))
+
+        old_birthday = user.birthday.strftime('%Y-%m-%d') if user.birthday else '-'
+        user.birthday = parsed
+        user.birthday_notified_year = 0
+        log_operation(
+            current_user.id,
+            'user_update_birthday',
+            'user',
+            user.id,
+            f'生日日期: {old_birthday} -> {parsed.strftime("%Y-%m-%d")}',
+        )
+        db.session.commit()
+        flash('生日已更新', 'success')
+        return redirect(url_for('users.detail', user_id=user_id, tab='info'))
+
     elif action == 'bind_wechat':
         # 简单模拟绑定/解绑
         if not current_user.is_staff:

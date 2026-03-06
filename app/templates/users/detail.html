@@ -75,6 +75,10 @@
           <p class="text-sm text-slate-800 dark:text-white">{{ user.register_type }}</p>
         </div>
         <div>
+          <p class="text-xs text-slate-400 mb-1">生日日期</p>
+          <p class="text-sm text-slate-800 dark:text-white">{{ user.birthday.strftime('%Y-%m-%d') if user.birthday else '未设置' }}</p>
+        </div>
+        <div>
           <p class="text-xs text-slate-400 mb-1">第三方关联</p>
           <div class="flex gap-2">
             <span class="px-2 py-1 text-xs rounded-full {% if user.kook_bound %}bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300{% else %}bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400{% endif %}">
@@ -128,6 +132,16 @@
               class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500">
           </div>
           <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-medium">保存</button>
+        </form>
+
+        <form method="post" action="{{ url_for('users.update_info', user_id=user.id) }}" class="flex gap-2 items-end">
+          <input type="hidden" name="action" value="update_birthday">
+          <div class="flex-1">
+            <label class="text-xs text-slate-400 mb-1 block">生日日期</label>
+            <input type="date" name="birthday" value="{{ user.birthday.strftime('%Y-%m-%d') if user.birthday else '' }}"
+              class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500">
+          </div>
+          <button type="submit" class="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-xl text-xs font-medium">保存生日</button>
         </form>
 
         {# 客服及以上可用：全部匿名播报 #}
