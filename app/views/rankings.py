@@ -3,14 +3,13 @@ from decimal import Decimal
 
 from flask import Blueprint, render_template, request
 from flask_login import login_required, current_user
-from sqlalchemy import func, desc, case
+from sqlalchemy import func, desc
 from sqlalchemy.orm import aliased
 
 from app.extensions import db
 from app.models.order import Order
 from app.models.gift import GiftOrder
 from app.models.user import User
-from app.models.finance import CommissionLog
 
 rankings_bp = Blueprint('rankings', __name__, template_folder='../templates')
 
@@ -67,41 +66,45 @@ def index():
     intimacy_ranking = []
 
     if tab == 'player':
-        # 陪玩收益排行：按佣金日志累计统计（提现不计入排行，不会把排行清零）
-        income_sub = db.session.query(
-            CommissionLog.user_id.label('player_id'),
-            func.sum(
-                case(
-                    (CommissionLog.change_type == 'order_income', CommissionLog.amount),
-                    else_=0
-                )
-            ).label('order_earning'),
-            func.sum(
-                case(
-                    (CommissionLog.change_type == 'gift_income', CommissionLog.amount),
-                    else_=0
-                )
-            ).label('gift_earning'),
-            func.sum(CommissionLog.amount).label('total_income')
+        # 陪玩收益排行：仅统计“已结算且已解冻”的订单/礼物收益（不计冻结，不计退款）
+        order_income = db.session.query(
+            Order.player_id.label('player_id'),
+            func.sum(Order.player_earning).label('order_earning'),
         ).filter(
-            CommissionLog.change_type.in_(['order_income', 'gift_income', 'refund_deduct']),
-            CommissionLog.created_at >= start_date,
-            CommissionLog.created_at < end_date
-        ).group_by(CommissionLog.user_id).subquery()
+            Order.status == 'paid',
+            Order.freeze_status == 'normal',
+            Order.created_at >= start_date,
+            Order.created_at < end_date,
+        ).group_by(Order.player_id).subquery()
+
+        gift_income = db.session.query(
+            GiftOrder.player_id.label('player_id'),
+            func.sum(GiftOrder.player_earning).label('gift_earning'),
+        ).filter(
+            GiftOrder.status == 'paid',
+            GiftOrder.freeze_status == 'normal',
+            GiftOrder.created_at >= start_date,
+            GiftOrder.created_at < end_date,
+        ).group_by(GiftOrder.player_id).subquery()
 
         results = db.session.query(
             User,
-            func.coalesce(income_sub.c.order_earning, 0).label('order_earning'),
-            func.coalesce(income_sub.c.gift_earning, 0).label('gift_earning'),
-            func.coalesce(income_sub.c.total_income, 0).label('total_income'),
-        ).join(
-            income_sub, User.id == income_sub.c.player_id
+            func.coalesce(order_income.c.order_earning, 0).label('order_earning'),
+            func.coalesce(gift_income.c.gift_earning, 0).label('gift_earning'),
+        ).outerjoin(
+            order_income, User.id == order_income.c.player_id
+        ).outerjoin(
+            gift_income, User.id == gift_income.c.player_id
         ).filter(
-            User.role_filter_expr('player')
+            User.role_filter_expr('player'),
+            db.or_(
+                order_income.c.order_earning != None,
+                gift_income.c.gift_earning != None,
+            )
         ).all()
 
-        for user, oe, ge, total_income in results:
-            total = Decimal(str(total_income or 0))
+        for user, oe, ge in results:
+            total = Decimal(str(oe or 0)) + Decimal(str(ge or 0))
             player_ranking.append({
                 'user': user,
                 'order_earning': Decimal(str(oe or 0)),
@@ -111,12 +114,13 @@ def index():
         player_ranking.sort(key=lambda x: x['total'], reverse=True)
 
     elif tab == 'boss':
-        # 老板消费排行: 按消费嗯呢币排序 (订单+礼物)
+        # 老板消费排行：仅统计“已结算且已解冻”的订单/礼物（不计冻结，不计退款）
         order_spend = db.session.query(
             Order.boss_id,
             func.sum(Order.total_price).label('order_spend')
         ).filter(
-            Order.status.in_(['paid', 'pending_pay']),
+            Order.status == 'paid',
+            Order.freeze_status == 'normal',
             Order.created_at >= start_date,
             Order.created_at < end_date
         ).group_by(Order.boss_id).subquery()
@@ -126,6 +130,7 @@ def index():
             func.sum(GiftOrder.total_price).label('gift_spend')
         ).filter(
             GiftOrder.status == 'paid',
+            GiftOrder.freeze_status == 'normal',
             GiftOrder.created_at >= start_date,
             GiftOrder.created_at < end_date
         ).group_by(GiftOrder.boss_id).subquery()
@@ -154,13 +159,16 @@ def index():
         boss_ranking.sort(key=lambda x: x['total'], reverse=True)
 
     elif tab == 'intimacy':
-        # 亲密度排行：仅按礼物统计（不计订单）
+        # 亲密度排行：仅按“已结算且已解冻”的礼物统计（不计订单）
         gift_intimacy = db.session.query(
             GiftOrder.boss_id.label('boss_id'),
             GiftOrder.player_id.label('player_id'),
             func.sum(GiftOrder.total_price).label('value'),
         ).filter(
-            GiftOrder.status == 'paid'
+            GiftOrder.status == 'paid',
+            GiftOrder.freeze_status == 'normal',
+            GiftOrder.created_at >= start_date,
+            GiftOrder.created_at < end_date,
         ).group_by(
             GiftOrder.boss_id,
             GiftOrder.player_id

@@ -286,54 +286,8 @@ def sync_kook_username(user_id):
 @login_required
 @staff_required
 def sync_kook_usernames():
-    """一键批量同步所有已绑定 KOOK ID 的用户名称/头像，并覆盖客户昵称+用户名。"""
-    users = User.query.filter(
-        User.kook_id.isnot(None),
-        User.kook_id != ''
-    ).all()
-
-    if not users:
-        flash('没有可同步的用户（未找到已绑定 KOOK ID 的账号）', 'error')
-        return redirect(request.referrer or url_for('users.index'))
-
-    success_count = 0
-    updated_count = 0
-    failed_count = 0
-    error_samples = []
-
-    for user in users:
-        ok, changed, error, old_name, new_name = _sync_user_kook_profile(
-            user,
-            force_nickname=True,
-            force_username=True,
-        )
-        if not ok:
-            failed_count += 1
-            if len(error_samples) < 3:
-                error_samples.append(f'{user.nickname or user.username}: {error}')
-            continue
-
-        success_count += 1
-        if changed:
-            updated_count += 1
-
-        log_operation(
-            current_user.id,
-            'user_sync_kook_username',
-            'user',
-            user.id,
-            f'批量同步KOOK名称: {old_name or "-"} -> {new_name or "-"}',
-        )
-
-    db.session.commit()
-
-    summary = (
-        f'批量同步完成：共 {len(users)} 个，成功 {success_count} 个，'
-        f'有更新 {updated_count} 个，失败 {failed_count} 个'
-    )
-    flash(summary, 'success' if failed_count == 0 else 'error')
-    if error_samples:
-        flash('失败示例：' + '；'.join(error_samples), 'error')
+    """批量同步功能已下线"""
+    flash('一键同步 KOOK 功能已下线，请在用户详情中由管理员手动维护用户名', 'info')
     return redirect(request.referrer or url_for('users.index'))
 
 
@@ -483,10 +437,30 @@ def update_info(user_id):
             flash('播报频道已更新', 'success')
 
     elif action == 'update_nickname':
+        username = request.form.get('username', '').strip()
         nickname = request.form.get('nickname', '').strip()
         player_nickname = request.form.get('player_nickname', '').strip()
         changes = []
         nickname_change_denied = False
+        username_change_denied = False
+
+        if username and username != user.username:
+            if not current_user.is_admin:
+                username_change_denied = True
+            else:
+                if len(username) > 50:
+                    flash('用户名最长50个字符', 'error')
+                    return redirect(url_for('users.detail', user_id=user_id, tab='info'))
+                conflict = User.query.filter(
+                    User.username == username,
+                    User.id != user.id,
+                ).first()
+                if conflict:
+                    flash('用户名已存在，请更换', 'error')
+                    return redirect(url_for('users.detail', user_id=user_id, tab='info'))
+                changes.append(f'用户名: {user.username} -> {username}')
+                user.username = username
+
         if nickname and nickname != user.nickname:
             if not current_user.is_admin:
                 nickname_change_denied = True
@@ -501,8 +475,13 @@ def update_info(user_id):
             log_operation(current_user.id, 'user_update_nickname', 'user', user.id, '; '.join(changes))
             db.session.commit()
             flash('昵称已更新', 'success')
-        elif nickname_change_denied:
-            flash('客户昵称仅管理员及以上可修改', 'error')
+        elif nickname_change_denied or username_change_denied:
+            denied_msgs = []
+            if nickname_change_denied:
+                denied_msgs.append('客户昵称仅管理员及以上可修改')
+            if username_change_denied:
+                denied_msgs.append('用户名仅管理员及以上可修改')
+            flash('；'.join(denied_msgs), 'error')
 
     elif action == 'update_birthday':
         raw_birthday = (request.form.get('birthday') or '').strip()

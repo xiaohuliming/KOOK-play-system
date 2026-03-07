@@ -181,17 +181,19 @@ def refund_gift_order(gift_order, operator_id=None):
     player = gift_order.player
     total_price = gift_order.total_price
     player_earning = gift_order.player_earning
+    is_crown = bool(gift_order.gift and gift_order.gift.gift_type == 'crown')
 
     # 先校验可扣佣金，避免出现“老板已退款但陪玩仅被清零”的账务不一致
-    if gift_order.freeze_status == 'frozen':
-        available_frozen = Decimal(str(player.m_bean_frozen or 0))
-        if available_frozen < player_earning:
-            shortfall = (player_earning - available_frozen).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-            return False, f'退款失败：陪玩冻结佣金不足，差额 {shortfall} 小猪粮，请先补足后再退款'
+    available_frozen = Decimal(str(player.m_bean_frozen or 0))
+    available_bean = Decimal(str(player.m_bean or 0))
+    if is_crown:
+        total_available = available_frozen + available_bean
+        if total_available < player_earning:
+            shortfall = (player_earning - total_available).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            return False, f'退款失败：冠名礼物可扣收益不足，差额 {shortfall} 小猪粮，请先补足后再退款'
     else:
-        available = Decimal(str(player.m_bean or 0))
-        if available < player_earning:
-            shortfall = (player_earning - available).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        if available_bean < player_earning:
+            shortfall = (player_earning - available_bean).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
             return False, f'退款失败：陪玩佣金不足，差额 {shortfall} 小猪粮，请先补足后再退款'
 
     # 退还老板余额
@@ -206,11 +208,15 @@ def refund_gift_order(gift_order, operator_id=None):
     db.session.add(balance_log)
 
     # 扣回陪玩佣金
-    if gift_order.freeze_status == 'frozen':
-        # 冻结中: 直接扣冻结余额
-        player.m_bean_frozen -= player_earning
+    # 冠名礼物: 优先扣冻结余额，不足再扣可用余额
+    if is_crown:
+        frozen_deduct = min(Decimal(str(player.m_bean_frozen or 0)), player_earning)
+        player.m_bean_frozen -= frozen_deduct
+        remaining = player_earning - frozen_deduct
+        if remaining > 0:
+            player.m_bean -= remaining
     else:
-        # 已到账: 扣可用余额
+        # 标准礼物: 仅扣可用余额
         player.m_bean -= player_earning
 
     commission_log = CommissionLog(

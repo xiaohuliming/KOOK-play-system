@@ -27,13 +27,6 @@
       <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded-xl text-sm font-medium transition-colors flex items-center gap-1">
         <i data-lucide="search" width="16" height="16"></i> 搜索
       </button>
-      <form method="post" action="{{ url_for('users.sync_kook_usernames') }}">
-        <button type="submit"
-          onclick="return confirm('确认一键同步所有已绑定 KOOK ID 的用户名称/头像吗？')"
-          class="bg-cyan-600 hover:bg-cyan-700 text-white px-5 py-2 rounded-xl text-sm font-medium transition-colors flex items-center gap-1">
-          <i data-lucide="refresh-cw" width="16" height="16"></i> 一键同步KOOK
-        </button>
-      </form>
       <button type="button" onclick="document.getElementById('addUserModal').classList.remove('hidden')"
         class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl text-sm font-medium transition-colors flex items-center gap-1 ml-auto mt-1">
         <i data-lucide="user-plus" width="16" height="16"></i> 新增用户

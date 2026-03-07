@@ -385,14 +385,7 @@ def report_order(order, duration_hours, operator_id=None):
         discount_percent=boss_discount,
     )
 
-    order.duration = duration
-    order.total_price = total_price
-    order.player_earning = player_earning
-    order.shop_earning = shop_earning
     now = datetime.utcnow()
-    order.fill_time = now
-    order.report_time = now
-    order.boss_discount = boss_discount
 
     if is_escort:
         # 护航/代练: 创建时已扣款冻结，报单时仅按最终时长补差并立即结算
@@ -416,10 +409,25 @@ def report_order(order, duration_hours, operator_id=None):
             else:
                 order.player.m_bean_frozen = Decimal('0')
 
+        order.duration = duration
+        order.total_price = total_price
+        order.player_earning = player_earning
+        order.shop_earning = shop_earning
+        order.fill_time = now
+        order.report_time = now
+        order.boss_discount = boss_discount
+
         ok, err = settle_escort_order(order)
         if not ok:
             return False, err
     else:
+        order.duration = duration
+        order.total_price = total_price
+        order.player_earning = player_earning
+        order.shop_earning = shop_earning
+        order.fill_time = now
+        order.report_time = now
+        order.boss_discount = boss_discount
         order.status = 'pending_confirm'
         # 陪玩单必须由老板确认后才结算，不自动确认
         order.auto_confirm_at = None
