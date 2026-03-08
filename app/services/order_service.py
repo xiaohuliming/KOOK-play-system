@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 import random
 import string
@@ -160,6 +160,111 @@ def deduct_boss_balance(boss, amount, order_no):
     return True
 
 
+def _quantize_money(value):
+    return Decimal(str(value or 0)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+
+def _deduct_boss_balance_silent(boss, amount):
+    """
+    仅扣老板余额，不记账不发通知。
+    返回: (success, coin_deducted, gift_deducted)
+    """
+    amount = _quantize_money(amount)
+    if amount <= 0:
+        return True, Decimal('0.00'), Decimal('0.00')
+
+    total_available = _quantize_money(boss.m_coin) + _quantize_money(boss.m_coin_gift)
+    if total_available < amount:
+        return False, Decimal('0.00'), Decimal('0.00')
+
+    if _quantize_money(boss.m_coin) >= amount:
+        coin_deducted = amount
+        gift_deducted = Decimal('0.00')
+        boss.m_coin = _quantize_money(boss.m_coin) - amount
+    else:
+        coin_deducted = _quantize_money(boss.m_coin)
+        gift_deducted = amount - coin_deducted
+        boss.m_coin = Decimal('0.00')
+        boss.m_coin_gift = _quantize_money(boss.m_coin_gift) - gift_deducted
+
+    return True, coin_deducted, gift_deducted
+
+
+def _release_order_hold(order, reason='订单解冻释放'):
+    """把订单冻结金额退回老板钱包（原路退回 m_coin / m_coin_gift）"""
+    boss = order.boss
+    hold_coin = _quantize_money(order.boss_hold_coin)
+    hold_gift = _quantize_money(order.boss_hold_gift)
+    release_total = hold_coin + hold_gift
+    if release_total <= 0:
+        return Decimal('0.00')
+
+    boss.m_coin = _quantize_money(boss.m_coin) + hold_coin
+    boss.m_coin_gift = _quantize_money(boss.m_coin_gift) + hold_gift
+    order.boss_hold_coin = Decimal('0.00')
+    order.boss_hold_gift = Decimal('0.00')
+
+    db.session.add(BalanceLog(
+        user_id=boss.id,
+        change_type='order_unhold',
+        amount=release_total,
+        balance_after=_quantize_money(boss.m_coin) + _quantize_money(boss.m_coin_gift),
+        reason=f'订单 {order.order_no} {reason}'
+    ))
+    return release_total
+
+
+def _adjust_order_hold(order, target_total):
+    """
+    将订单冻结金额调整到 target_total（用于申报/改报单）。
+    返回: (ok, err)
+    """
+    boss = order.boss
+    target_total = _quantize_money(target_total)
+    hold_coin = _quantize_money(order.boss_hold_coin)
+    hold_gift = _quantize_money(order.boss_hold_gift)
+    current_hold = hold_coin + hold_gift
+    delta = target_total - current_hold
+
+    if delta > 0:
+        ok, coin_add, gift_add = _deduct_boss_balance_silent(boss, delta)
+        if not ok:
+            return False, '老板余额不足，无法冻结申报金额'
+
+        order.boss_hold_coin = hold_coin + coin_add
+        order.boss_hold_gift = hold_gift + gift_add
+        db.session.add(BalanceLog(
+            user_id=boss.id,
+            change_type='order_hold',
+            amount=-delta,
+            balance_after=_quantize_money(boss.m_coin) + _quantize_money(boss.m_coin_gift),
+            reason=f'订单 {order.order_no} 申报冻结'
+        ))
+        return True, None
+
+    if delta < 0:
+        release_need = -delta
+        release_coin = min(hold_coin, release_need)
+        release_need -= release_coin
+        release_gift = min(hold_gift, release_need)
+
+        order.boss_hold_coin = hold_coin - release_coin
+        order.boss_hold_gift = hold_gift - release_gift
+        boss.m_coin = _quantize_money(boss.m_coin) + release_coin
+        boss.m_coin_gift = _quantize_money(boss.m_coin_gift) + release_gift
+
+        db.session.add(BalanceLog(
+            user_id=boss.id,
+            change_type='order_unhold',
+            amount=release_coin + release_gift,
+            balance_after=_quantize_money(boss.m_coin) + _quantize_money(boss.m_coin_gift),
+            reason=f'订单 {order.order_no} 申报调整解冻'
+        ))
+        return True, None
+
+    return True, None
+
+
 def refund_boss_balance(boss, amount, order_no):
     """退还老板嗯呢币"""
     amount = Decimal(str(amount))
@@ -244,7 +349,7 @@ def create_normal_order(boss, player, project_item, price_tier, staff,
                         extra_price=0, addon_desc=None, addon_price=0, remark=None):
     """
     创建常规陪玩订单 (状态: pending_report)
-    不即时扣款, 等老板确认时扣款
+    不在创建时扣款，陪玩申报后先冻结，老板确认时再记消费
     """
     base_price = Decimal(str(project_item.get_price_by_tier(price_tier) or 0))
     extra_price_dec = Decimal(str(extra_price))
@@ -277,6 +382,8 @@ def create_normal_order(boss, player, project_item, price_tier, staff,
         boss_discount=boss_discount,
         commission_rate=commission_rate,
         order_type='normal',
+        boss_hold_coin=Decimal('0.00'),
+        boss_hold_gift=Decimal('0.00'),
         status='pending_report',
         remark=remark,
     )
@@ -364,6 +471,7 @@ def report_order(order, duration_hours, operator_id=None):
     """
     陪玩申报时长(小时), 计算总价
     - 仅常规单: pending_report/pending_confirm → pending_confirm
+    - 申报时冻结老板金额（改报单自动增减冻结）
     """
     if order.order_type in ('escort', 'training'):
         return False, '护航/代练订单无需报单，创建后已自动结算并冻结'
@@ -391,19 +499,27 @@ def report_order(order, duration_hours, operator_id=None):
 
     now = datetime.utcnow()
 
-    order.duration = duration
+    # 申报阶段先冻结老板金额；改报单会自动增减冻结金额
+    old_total = _quantize_money(order.total_price)
     order.total_price = total_price
+    hold_ok, hold_err = _adjust_order_hold(order, _quantize_money(total_price))
+    if not hold_ok:
+        order.total_price = old_total
+        return False, hold_err
+
+    order.duration = duration
     order.player_earning = player_earning
     order.shop_earning = shop_earning
     order.fill_time = now
     order.report_time = now
     order.boss_discount = boss_discount
     order.status = 'pending_confirm'
-    # 陪玩单必须由老板确认后才结算，不自动确认
-    order.auto_confirm_at = None
+    # 陪玩单：老板可手动确认；超 24h 未确认走自动确认
+    order.auto_confirm_at = now + timedelta(hours=24)
 
+    hold_total = _quantize_money(order.boss_hold_coin) + _quantize_money(order.boss_hold_gift)
     log_operation(operator_id or _get_operator_id(), 'order_report', 'order', order.id,
-                  f'陪玩申报订单 {order.order_no}, 时长: {duration}h, 总价: {total_price}')
+                  f'陪玩申报订单 {order.order_no}, 时长: {duration}h, 总价: {total_price}, 已冻结: {hold_total}')
 
     return True, None
 
@@ -411,7 +527,7 @@ def report_order(order, duration_hours, operator_id=None):
 def confirm_order(order, operator_id=None):
     """
     老板确认 / 24h自动确认
-    先扣老板余额，常规陪玩单佣金直接发放，状态 → paid（不默认冻结）
+    陪玩单在申报时已冻结，确认时才入账为真实消费
     """
     if order.status != 'pending_confirm':
         return False, '订单状态不正确'
@@ -419,10 +535,54 @@ def confirm_order(order, operator_id=None):
     if order.order_type in ('escort', 'training'):
         return False, '护航/代练订单不走确认流程'
 
-    # 常规订单在确认时扣款
     boss = order.boss
-    if not deduct_boss_balance(boss, order.total_price, order.order_no):
-        return False, '老板余额不足，无法确认订单'
+    total_price = _quantize_money(order.total_price)
+    hold_coin = _quantize_money(order.boss_hold_coin)
+    hold_gift = _quantize_money(order.boss_hold_gift)
+    hold_total = hold_coin + hold_gift
+
+    # 先吃掉冻结资金，不足部分兜底实时扣款（兼容历史数据）
+    consume_from_hold = min(hold_total, total_price)
+    consume_coin_from_hold = min(hold_coin, consume_from_hold)
+    consume_gift_from_hold = consume_from_hold - consume_coin_from_hold
+    remaining_pay = total_price - consume_from_hold
+
+    order.boss_hold_coin = hold_coin - consume_coin_from_hold
+    order.boss_hold_gift = hold_gift - consume_gift_from_hold
+
+    coin_direct = Decimal('0.00')
+    if remaining_pay > 0:
+        ok, coin_direct, _gift_direct = _deduct_boss_balance_silent(boss, remaining_pay)
+        if not ok:
+            return False, '老板余额不足，无法确认订单'
+
+    # 理论上确认后不应再残留冻结，如有残留立即退回
+    if _quantize_money(order.boss_hold_coin) + _quantize_money(order.boss_hold_gift) > 0:
+        _release_order_hold(order, reason='确认后自动解冻差额')
+
+    db.session.add(BalanceLog(
+        user_id=boss.id,
+        change_type='consume',
+        amount=-total_price,
+        balance_after=_quantize_money(boss.m_coin) + _quantize_money(boss.m_coin_gift),
+        reason=f'订单 {order.order_no} 消费'
+    ))
+
+    # 仅真实嗯呢币消费增加经验（冻结嗯呢币 + 兜底扣款中的嗯呢币）
+    from app.services.vip_service import apply_consume_experience, check_and_upgrade
+    apply_consume_experience(boss, consume_coin_from_hold + coin_direct)
+    check_and_upgrade(boss)
+
+    # KOOK 私信通知（老板消费）
+    try:
+        from app.services.kook_service import push_boss_consume_notice
+        push_boss_consume_notice(
+            boss,
+            total_price,
+            reason=f'订单 {order.order_no} 消费',
+        )
+    except Exception:
+        pass
 
     # 常规陪玩单：确认后自动结算并冻结，等待客服手动解冻发放
     player = order.player
@@ -432,6 +592,7 @@ def confirm_order(order, operator_id=None):
     order.freeze_status = 'frozen'
     order.confirm_time = datetime.utcnow()
     order.pay_time = datetime.utcnow()
+    order.auto_confirm_at = None
 
     # 客服提成: 常规陪玩 1元/单
     if order.staff:
@@ -551,7 +712,7 @@ def delete_order(order, operator_id=None):
     """
     手动删除订单:
     1) 仅允许删除未付款订单: pending_report / pending_confirm
-    2) 删除不触发资金变动
+    2) 若已冻结老板金额，删除前自动解冻退回
     3) 删除订单本身
     """
     if order.status not in ('pending_report', 'pending_confirm'):
@@ -568,6 +729,10 @@ def delete_order(order, operator_id=None):
 
     order_id = order.id
     order_no = order.order_no
+
+    # 删除未付款订单前，释放申报冻结金额
+    if _quantize_money(order.boss_hold_coin) + _quantize_money(order.boss_hold_gift) > 0:
+        _release_order_hold(order, reason='删除订单自动解冻')
 
     db.session.delete(order)
 

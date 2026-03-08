@@ -15,6 +15,8 @@
         <option value="recharge" {% if current_type == 'recharge' %}selected{% endif %}>充值</option>
         <option value="consume" {% if current_type == 'consume' %}selected{% endif %}>消费</option>
         <option value="gift_send" {% if current_type == 'gift_send' %}selected{% endif %}>赠金/赠送</option>
+        <option value="order_hold" {% if current_type == 'order_hold' %}selected{% endif %}>订单冻结</option>
+        <option value="order_unhold" {% if current_type == 'order_unhold' %}selected{% endif %}>订单解冻</option>
         <option value="refund" {% if current_type == 'refund' %}selected{% endif %}>退款</option>
         <option value="admin_adjust" {% if current_type == 'admin_adjust' %}selected{% endif %}>管理变账</option>
         <option value="exchange_in" {% if current_type == 'exchange_in' %}selected{% endif %}>转换转入</option>
@@ -42,7 +44,10 @@
           {% for log in logs.items %}
           <tr class="border-b border-white/20 dark:border-slate-700/50 text-sm">
             <td class="py-3 text-slate-500 dark:text-slate-400">{{ fmt_dt(log.created_at, '%Y-%m-%d %H:%M') }}</td>
-            <td class="py-3 text-slate-700 dark:text-slate-300">{{ log.change_type }}</td>
+            <td class="py-3 text-slate-700 dark:text-slate-300">
+              {% set type_labels = {'recharge':'充值','consume':'消费','gift_send':'赠金/赠送','order_hold':'订单冻结','order_unhold':'订单解冻','refund':'退款','admin_adjust':'管理变账','exchange_in':'转换转入','exchange_out':'转换转出'} %}
+              {{ type_labels.get(log.change_type, log.change_type) }}
+            </td>
             <td class="py-3 font-bold {% if log.amount >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
               {% if log.amount >= 0 %}+{% endif %}{{ "%.2f"|format(log.amount) }}
             </td>

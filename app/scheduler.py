@@ -11,9 +11,43 @@ def init_scheduler(app):
     """初始化并启动调度器"""
 
     def auto_confirm_orders():
-        """自动确认任务已停用：陪玩订单需老板手动确认"""
+        """24h 自动确认陪玩单（仅 normal）"""
         with app.app_context():
-            return
+            from datetime import datetime, timedelta
+            from app.extensions import db
+            from app.models.order import Order
+            from app.services.order_service import confirm_order
+            from app.services.kook_service import push_order_confirm
+
+            now = datetime.utcnow()
+            overdue = now - timedelta(hours=24)
+
+            orders = Order.query.filter(
+                Order.order_type == 'normal',
+                Order.status == 'pending_confirm',
+                db.or_(
+                    Order.auto_confirm_at <= now,
+                    db.and_(Order.auto_confirm_at.is_(None), Order.report_time <= overdue),
+                    db.and_(Order.auto_confirm_at.is_(None), Order.report_time.is_(None), Order.updated_at <= overdue),
+                )
+            ).all()
+
+            count = 0
+            for order in orders:
+                ok, err = confirm_order(order)
+                if ok:
+                    count += 1
+                    try:
+                        # 自动确认后通知陪玩
+                        push_order_confirm(order)
+                    except Exception as e:
+                        app.logger.warning(f'[Scheduler] 自动确认通知失败 order={order.order_no}: {e}')
+                else:
+                    app.logger.warning(f'[Scheduler] 自动确认失败 order={order.order_no}: {err}')
+
+            if count > 0:
+                db.session.commit()
+                app.logger.info(f'[Scheduler] 24h自动确认陪玩订单 {count} 笔')
 
     def auto_clock_timeout():
         """4小时打卡超时检测"""

@@ -279,11 +279,11 @@ def _handle_report(order):
         site_url = current_app.config.get('SITE_URL', '')
         kook_service.push_order_report(order, site_url=site_url)
         if current_user.is_staff and order.player_id != current_user.id:
-            flash('代报单成功，等待老板确认支付', 'success')
+            flash('代报单成功，已冻结老板余额，等待老板确认支付', 'success')
         elif was_pending_confirm:
-            flash('申报已更新，等待老板确认支付', 'success')
+            flash('申报已更新，冻结金额已同步调整，等待老板确认支付', 'success')
         else:
-            flash('申报成功，等待老板确认支付', 'success')
+            flash('申报成功，已冻结老板余额，等待老板确认支付', 'success')
         return redirect(url_for('orders.index'))
 
     return render_template('orders/report.html', order=order)

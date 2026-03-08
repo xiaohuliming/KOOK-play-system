@@ -24,6 +24,8 @@ class Order(db.Model):
     addon_price = db.Column(db.Numeric(10, 2), default=0)      # 附加项目价格
     boss_discount = db.Column(db.Numeric(5, 2), default=100)   # 老板折扣 (100=无折扣)
     total_price = db.Column(db.Numeric(10, 2), default=0)      # 订单总额
+    boss_hold_coin = db.Column(db.Numeric(10, 2), default=0)   # 老板冻结嗯呢币
+    boss_hold_gift = db.Column(db.Numeric(10, 2), default=0)   # 老板冻结赠金
 
     # 分成信息
     commission_rate = db.Column(db.Numeric(5, 2), default=80)  # 佣金比例%
