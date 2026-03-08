@@ -9,3 +9,4 @@ from .operation_log import OperationLog
 from .broadcast import BroadcastConfig
 from .vip import VipLevel, UpgradeRecord
 from .lottery import Lottery, LotteryWinner
+from .identity_tag import IdentityTag

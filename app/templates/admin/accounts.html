@@ -182,6 +182,9 @@
       {# 自定义标签 #}
       <div class="border-t border-slate-200 dark:border-slate-700 pt-4 mb-5">
         <p class="text-xs text-slate-500 dark:text-slate-400 font-medium mb-2">自定义标签</p>
+        <div id="identity_suggested_tags" class="flex flex-wrap gap-1.5 mb-3">
+          {# JS 动态生成“已配置标签”快捷按钮 #}
+        </div>
         <div class="flex flex-wrap gap-1.5 mb-3 min-h-[24px]" id="identity_custom_tags">
           {# JS 动态生成 #}
         </div>
@@ -209,6 +212,7 @@ function showRename(userId, currentName) {
 
 /* ---- 管理身份 ---- */
 const PRESET_IDENTITIES = ['老板', '陪玩', '客服'];
+const CUSTOM_IDENTITY_TAGS = {{ (custom_identity_tags or []) | tojson }};
 
 function showIdentity(btn) {
   const userId = btn.dataset.uid;
@@ -245,7 +249,9 @@ function showIdentity(btn) {
   });
 
   // 渲染已有的自定义标签
-  renderCustomTags(currentTags.filter(t => !PRESET_IDENTITIES.includes(t)));
+  const customTags = currentTags.filter(t => !PRESET_IDENTITIES.includes(t));
+  renderSuggestedTags(customTags);
+  renderCustomTags(customTags);
 
   document.getElementById('custom_tag_input').value = '';
   const m = document.getElementById('identity-modal');
@@ -267,6 +273,42 @@ function renderCustomTags(tags) {
   });
 }
 
+function renderSuggestedTags(selectedTags) {
+  const el = document.getElementById('identity_suggested_tags');
+  el.innerHTML = '';
+  if (!CUSTOM_IDENTITY_TAGS.length) {
+    const placeholder = document.createElement('span');
+    placeholder.className = 'text-[11px] text-slate-400';
+    placeholder.textContent = '暂无已配置的自定义标签，可手动输入。';
+    el.appendChild(placeholder);
+    return;
+  }
+  CUSTOM_IDENTITY_TAGS.forEach(tag => {
+    const isSelected = selectedTags.includes(tag);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.dataset.tag = tag;
+    btn.className = isSelected
+      ? 'px-2 py-1 rounded-full text-xs font-medium bg-teal-600 text-white'
+      : 'px-2 py-1 rounded-full text-xs font-medium bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300';
+    btn.textContent = isSelected ? ('已选 ' + tag) : tag;
+    btn.onclick = function() { toggleSuggestedTag(this.dataset.tag); };
+    el.appendChild(btn);
+  });
+}
+
+function toggleSuggestedTag(tag) {
+  const form = document.getElementById('identity-form');
+  const values = Array.from(form.querySelectorAll('input[name="tags"]')).map(i => i.value);
+  const selectedCustomTags = Array.from(new Set(values.filter(v => !PRESET_IDENTITIES.includes(v))));
+  const exists = selectedCustomTags.includes(tag);
+  const nextTags = exists
+    ? selectedCustomTags.filter(v => v !== tag)
+    : selectedCustomTags.concat([tag]);
+  renderSuggestedTags(nextTags);
+  renderCustomTags(nextTags);
+}
+
 function addCustomTag() {
   const input = document.getElementById('custom_tag_input');
   const tag = input.value.trim();
@@ -281,20 +323,20 @@ function addCustomTag() {
   }
 
   // 追加到自定义标签区
-  const el = document.getElementById('identity_custom_tags');
-  const span = document.createElement('span');
-  span.className = 'inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300';
-  span.innerHTML = `
-    <input type="hidden" name="tags" value="${tag}" form="identity-form">
-    ${tag}
-    <button type="button" onclick="removeCustomTag(this)" class="ml-0.5 text-teal-500 hover:text-red-500 transition-colors text-sm leading-none">&times;</button>
-  `;
-  el.appendChild(span);
+  const customInputs = Array.from(form.querySelectorAll('#identity_custom_tags input[name="tags"]'));
+  const customTags = customInputs.map(i => i.value);
+  customTags.push(tag);
+  renderSuggestedTags(customTags);
+  renderCustomTags(customTags);
   input.value = '';
 }
 
 function removeCustomTag(btn) {
   btn.closest('span').remove();
+  const form = document.getElementById('identity-form');
+  const values = Array.from(form.querySelectorAll('input[name="tags"]')).map(i => i.value);
+  const customTags = Array.from(new Set(values.filter(v => !PRESET_IDENTITIES.includes(v))));
+  renderSuggestedTags(customTags);
 }
 
 // 回车添加自定义标签

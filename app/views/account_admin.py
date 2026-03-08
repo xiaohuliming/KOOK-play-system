@@ -12,6 +12,7 @@ from app.models.vip import UpgradeRecord
 from app.models.operation_log import OperationLog
 from app.models.clock import ClockRecord
 from app.models.lottery import Lottery
+from app.models.identity_tag import IdentityTag
 from app.utils.permissions import admin_required, superadmin_required
 from app.services.log_service import log_operation
 
@@ -40,7 +41,17 @@ def index():
         query = query.filter(User.role_filter_expr(role_filter))
 
     users = query.order_by(User.created_at.desc()).paginate(page=page, per_page=20)
-    return render_template('admin/accounts.html', users=users, q=q, role_filter=role_filter)
+    custom_identity_tags = [
+        t.name
+        for t in IdentityTag.query.filter_by(status=True).order_by(IdentityTag.name.asc()).all()
+    ]
+    return render_template(
+        'admin/accounts.html',
+        users=users,
+        q=q,
+        role_filter=role_filter,
+        custom_identity_tags=custom_identity_tags,
+    )
 
 
 @account_admin_bp.route('/<int:user_id>/change_role', methods=['POST'])

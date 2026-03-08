@@ -76,11 +76,11 @@ def send_gift(boss, player, gift, quantity, staff=None):
     )
     db.session.add(balance_log)
 
-    # m_coin消费增加经验 (1:1)
-    boss.experience += int(coin_deducted)
+    # m_coin消费增加经验（支持身份标签经验倍率）
+    from app.services.vip_service import apply_consume_experience, check_and_upgrade
+    apply_consume_experience(boss, coin_deducted)
 
     # 检查VIP升级
-    from app.services.vip_service import check_and_upgrade
     check_and_upgrade(boss)
 
     # 发放陪玩佣金

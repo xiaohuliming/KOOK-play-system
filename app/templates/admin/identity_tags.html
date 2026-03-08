@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block header_title %}身份标签管理{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+  <div class="glass-card p-6 flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <h2 class="text-xl font-bold text-slate-800 dark:text-white">自定义身份标签规则</h2>
+      <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">可配置标签在某经验阈值前的消费经验倍率（例如 2 倍经验）。达到阈值后自动恢复 1 倍。</p>
+    </div>
+    <button onclick="showAddModal()" class="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-colors">
+      新增标签规则
+    </button>
+  </div>
+
+  <div class="glass-card p-6">
+    <div class="overflow-x-auto">
+      <table class="w-full text-left border-collapse min-w-[900px]">
+        <thead>
+          <tr class="text-sm text-slate-400 border-b border-white/40 dark:border-slate-700/50">
+            <th class="pb-3 font-medium">标签名称</th>
+            <th class="pb-3 font-medium">说明</th>
+            <th class="pb-3 font-medium">经验倍率</th>
+            <th class="pb-3 font-medium">倍率截止经验</th>
+            <th class="pb-3 font-medium">已分配用户</th>
+            <th class="pb-3 font-medium">状态</th>
+            <th class="pb-3 font-medium">更新时间</th>
+            <th class="pb-3 font-medium text-right">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+          {% set t = item.tag %}
+          <tr class="border-b border-white/20 dark:border-slate-700/50 hover:bg-white/20 dark:hover:bg-slate-700/30 transition-colors text-sm">
+            <td class="py-3 font-medium text-slate-800 dark:text-white">{{ t.name }}</td>
+            <td class="py-3 text-slate-500 dark:text-slate-400 text-xs">{{ t.description or '-' }}</td>
+            <td class="py-3 text-slate-700 dark:text-slate-200">{{ "%.2f"|format(t.exp_multiplier) }}x</td>
+            <td class="py-3 text-slate-700 dark:text-slate-200">{{ t.exp_bonus_until or '-' }}</td>
+            <td class="py-3 text-slate-700 dark:text-slate-200">{{ item.usage_count }}</td>
+            <td class="py-3">
+              {% if t.status %}
+              <span class="px-2 py-1 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 text-xs rounded-full font-medium">启用</span>
+              {% else %}
+              <span class="px-2 py-1 bg-slate-100 text-slate-600 dark:bg-slate-700/40 dark:text-slate-300 text-xs rounded-full font-medium">停用</span>
+              {% endif %}
+            </td>
+            <td class="py-3 text-slate-500 dark:text-slate-400 text-xs">{{ fmt_dt(t.updated_at, '%Y-%m-%d %H:%M') if t.updated_at else '-' }}</td>
+            <td class="py-3 text-right">
+              <button
+                onclick='showEditModal({{ t.id }}, {{ t.name|tojson }}, {{ (t.description or "")|tojson }}, "{{ t.exp_multiplier }}", "{{ t.exp_bonus_until or 0 }}", {{ "true" if t.status else "false" }})'
+                class="text-purple-500 hover:text-purple-600 text-xs font-medium px-2 py-1 rounded hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors">
+                编辑
+              </button>
+              <form action="{{ url_for('identity_tag_admin.delete', tag_id=t.id) }}" method="post" class="inline">
+                <button type="submit" onclick="return confirm('确认删除该标签规则？\\n\\n不会自动移除用户已挂载的同名标签。')" class="text-red-500 hover:text-red-600 text-xs font-medium px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                  删除
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="8" class="py-8 text-center text-slate-500">暂无身份标签规则</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="tag-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden items-center justify-center" onclick="if(event.target===this){closeModal()}">
+  <div class="glass-card p-8 max-w-lg w-full mx-4">
+    <h3 id="modal-title" class="text-lg font-bold text-slate-800 dark:text-white mb-4">新增标签规则</h3>
+    <form id="tag-form" method="post" class="space-y-4">
+      <div>
+        <label class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1 block">标签名称</label>
+        <input type="text" name="name" id="f_name" required maxlength="50" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm">
+      </div>
+      <div>
+        <label class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1 block">标签说明</label>
+        <input type="text" name="description" id="f_desc" maxlength="255" placeholder="例如：活动期间成长加速标签" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm">
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1 block">经验倍率</label>
+          <input type="number" name="exp_multiplier" id="f_mul" value="2.00" min="0.01" step="0.01" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm">
+          <p class="text-[11px] text-slate-400 mt-1">1.00 代表无加成，2.00 代表双倍经验</p>
+        </div>
+        <div>
+          <label class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1 block">倍率截止经验</label>
+          <input type="number" name="exp_bonus_until" id="f_until" value="0" min="0" step="1" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm">
+          <p class="text-[11px] text-slate-400 mt-1">0 表示不启用阈值规则</p>
+        </div>
+      </div>
+      <label class="flex items-center gap-2 text-sm">
+        <input type="checkbox" name="status" id="f_status" class="rounded" checked> 启用规则
+      </label>
+      <div class="flex gap-3">
+        <button type="submit" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2.5 rounded-xl text-sm font-medium">保存</button>
+        <button type="button" onclick="closeModal()" class="flex-1 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 py-2.5 rounded-xl text-sm font-medium">取消</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function closeModal() {
+  const modal = document.getElementById('tag-modal');
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+}
+
+function showAddModal() {
+  document.getElementById('modal-title').textContent = '新增标签规则';
+  document.getElementById('tag-form').action = '{{ url_for("identity_tag_admin.add") }}';
+  document.getElementById('f_name').value = '';
+  document.getElementById('f_desc').value = '';
+  document.getElementById('f_mul').value = '2.00';
+  document.getElementById('f_until').value = '0';
+  document.getElementById('f_status').checked = true;
+
+  const modal = document.getElementById('tag-modal');
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+}
+
+function showEditModal(id, name, desc, mul, until, status) {
+  document.getElementById('modal-title').textContent = '编辑标签规则';
+  document.getElementById('tag-form').action = '/admin/identity-tags/' + id + '/edit';
+  document.getElementById('f_name').value = name || '';
+  document.getElementById('f_desc').value = desc || '';
+  document.getElementById('f_mul').value = mul || '1.00';
+  document.getElementById('f_until').value = until || '0';
+  document.getElementById('f_status').checked = (status === true || status === 'true');
+
+  const modal = document.getElementById('tag-modal');
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+}
+</script>
+{% endblock %}

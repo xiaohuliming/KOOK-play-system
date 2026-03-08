@@ -94,6 +94,9 @@ def create_app(config_class=Config, start_background_tasks=True):
     from app.views.account_admin import account_admin_bp
     app.register_blueprint(account_admin_bp, url_prefix='/admin/accounts')
 
+    from app.views.identity_tag_admin import identity_tag_admin_bp
+    app.register_blueprint(identity_tag_admin_bp, url_prefix='/admin/identity-tags')
+
     from app.views.logs import logs_bp
     app.register_blueprint(logs_bp, url_prefix='/admin/logs')
 

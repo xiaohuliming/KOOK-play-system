@@ -1,9 +1,12 @@
 """
 VIP自动升级服务
 """
+from decimal import Decimal
+
 from app.extensions import db
 from app.models.user import User
 from app.models.vip import VipLevel, UpgradeRecord
+from app.models.identity_tag import IdentityTag
 
 
 def get_vip_levels():
@@ -74,6 +77,61 @@ def check_and_upgrade(user, levels=None):
         pass  # 推送失败不影响升级流程
 
     return True, target_level
+
+
+def _get_active_consume_exp_rule(user):
+    """
+    获取用户当前生效的消费经验加成规则。
+    规则生效条件：
+    1) 用户拥有该身份标签
+    2) 规则启用，倍率 > 1
+    3) 配置了经验阈值，且当前经验 < 阈值
+    冲突处理：取倍率最高的一条。
+    """
+    tags = set(user.tag_list or [])
+    if not tags:
+        return None
+
+    rules = (
+        IdentityTag.query
+        .filter(
+            IdentityTag.status == True,
+            IdentityTag.name.in_(list(tags)),
+            IdentityTag.exp_multiplier > Decimal('1.00'),
+            IdentityTag.exp_bonus_until.isnot(None),
+        )
+        .all()
+    )
+    if not rules:
+        return None
+
+    current_exp = int(user.experience or 0)
+    valid = []
+    for rule in rules:
+        threshold = int(rule.exp_bonus_until or 0)
+        if threshold > 0 and current_exp < threshold:
+            valid.append(rule)
+    if not valid:
+        return None
+
+    return max(valid, key=lambda r: Decimal(str(r.exp_multiplier or 1)))
+
+
+def apply_consume_experience(user, coin_amount):
+    """
+    按身份标签规则计算并增加消费经验。
+    返回: (gain_exp, multiplier, rule_name)
+    """
+    base_exp = int(Decimal(str(coin_amount or 0)))
+    if base_exp <= 0:
+        return 0, Decimal('1.00'), None
+
+    rule = _get_active_consume_exp_rule(user)
+    multiplier = Decimal(str(rule.exp_multiplier if rule else 1))
+    gain_exp = int(Decimal(base_exp) * multiplier)
+
+    user.experience = int(user.experience or 0) + gain_exp
+    return gain_exp, multiplier, (rule.name if rule else None)
 
 
 def batch_check_upgrades():
