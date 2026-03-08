@@ -547,14 +547,15 @@ def confirm_order(order, operator_id=None):
     consume_gift_from_hold = consume_from_hold - consume_coin_from_hold
     remaining_pay = total_price - consume_from_hold
 
-    order.boss_hold_coin = hold_coin - consume_coin_from_hold
-    order.boss_hold_gift = hold_gift - consume_gift_from_hold
-
     coin_direct = Decimal('0.00')
     if remaining_pay > 0:
         ok, coin_direct, _gift_direct = _deduct_boss_balance_silent(boss, remaining_pay)
         if not ok:
             return False, '老板余额不足，无法确认订单'
+
+    # 支付能力确认后，再落冻结金额变动，避免失败路径污染
+    order.boss_hold_coin = hold_coin - consume_coin_from_hold
+    order.boss_hold_gift = hold_gift - consume_gift_from_hold
 
     # 理论上确认后不应再残留冻结，如有残留立即退回
     if _quantize_money(order.boss_hold_coin) + _quantize_money(order.boss_hold_gift) > 0:

@@ -1,6 +1,7 @@
 """
 APScheduler 定时任务配置
 """
+from datetime import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
@@ -21,18 +22,28 @@ def init_scheduler(app):
 
             now = datetime.utcnow()
             overdue = now - timedelta(hours=24)
+            deadline_expr = db.func.coalesce(
+                Order.report_time,
+                Order.fill_time,
+                Order.updated_at,
+                Order.created_at,
+            )
 
             orders = Order.query.filter(
-                Order.order_type == 'normal',
                 Order.status == 'pending_confirm',
                 db.or_(
+                    Order.order_type == 'normal',
+                    Order.order_type.is_(None),
+                    Order.order_type == '',
+                ),
+                db.or_(
                     Order.auto_confirm_at <= now,
-                    db.and_(Order.auto_confirm_at.is_(None), Order.report_time <= overdue),
-                    db.and_(Order.auto_confirm_at.is_(None), Order.report_time.is_(None), Order.updated_at <= overdue),
+                    db.and_(Order.auto_confirm_at.is_(None), deadline_expr <= overdue),
                 )
             ).all()
 
             count = 0
+            failed = 0
             for order in orders:
                 ok, err = confirm_order(order)
                 if ok:
@@ -43,11 +54,15 @@ def init_scheduler(app):
                     except Exception as e:
                         app.logger.warning(f'[Scheduler] 自动确认通知失败 order={order.order_no}: {e}')
                 else:
+                    failed += 1
                     app.logger.warning(f'[Scheduler] 自动确认失败 order={order.order_no}: {err}')
 
             if count > 0:
                 db.session.commit()
                 app.logger.info(f'[Scheduler] 24h自动确认陪玩订单 {count} 笔')
+            elif failed > 0:
+                db.session.rollback()
+                app.logger.warning(f'[Scheduler] 24h自动确认执行完成，失败 {failed} 笔')
 
     def auto_clock_timeout():
         """4小时打卡超时检测"""
@@ -87,6 +102,7 @@ def init_scheduler(app):
         trigger=IntervalTrigger(minutes=5),
         id='auto_confirm_orders',
         name='24h自动确认订单',
+        next_run_time=datetime.utcnow(),
         replace_existing=True
     )
 
