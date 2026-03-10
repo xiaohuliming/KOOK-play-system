@@ -181,8 +181,8 @@ def gift_action(order_id, action):
             flash(error, 'error')
 
     elif action == 'refund':
-        if not current_user.is_admin:
-            flash('退款需要管理员权限', 'error')
+        if not current_user.is_staff:
+            flash('退款需要客服及以上权限', 'error')
             return redirect(url_for('gifts.index'))
         success, error = gift_service.refund_gift_order(gift_order, current_user.id)
         if success:

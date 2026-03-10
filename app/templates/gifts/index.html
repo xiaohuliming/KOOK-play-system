@@ -144,7 +144,7 @@
                     <button type="submit" class="text-blue-500 hover:text-blue-600 text-xs font-medium px-2 py-1 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors" onclick="return confirm('确认解冻? 冠名礼物佣金将到账')">解冻</button>
                   </form>
                   {% endif %}
-                  {% if current_user.is_admin %}
+                  {% if current_user.is_staff %}
                   <form action="{{ url_for('gifts.gift_action', order_id=go.id, action='refund') }}" method="post" class="inline">
                     <button type="submit" class="text-red-500 hover:text-red-600 text-xs font-medium px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors" onclick="return confirm('确认退款?')">退款</button>
                   </form>

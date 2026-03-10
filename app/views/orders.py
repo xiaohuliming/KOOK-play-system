@@ -314,7 +314,7 @@ def confirm(order_id):
 @orders_bp.route('/<int:order_id>/action/<action>', methods=['POST'])
 @login_required
 def order_action(order_id, action):
-    """冻结/解冻: 客服+, 退款: 管理员+"""
+    """冻结/解冻/退款: 客服+"""
     order = Order.query.get_or_404(order_id)
 
     if action == 'freeze':
@@ -346,8 +346,8 @@ def order_action(order_id, action):
         flash('护航/代肝订单无需手动结算：创建后已自动结算并冻结', 'info')
 
     elif action == 'refund':
-        if not current_user.is_admin:
-            flash('退款操作需要管理员及以上权限', 'error')
+        if not current_user.is_staff:
+            flash('退款操作需要客服及以上权限', 'error')
             return redirect(url_for('orders.index'))
         notify_operator = current_user.staff_display_name
         success, error = order_service.refund_order(order)

@@ -108,8 +108,8 @@ def can_freeze_order(user):
 
 
 def can_refund_order(user):
-    """退款权限: 管理员+"""
-    return user.is_admin
+    """退款权限: 客服+"""
+    return user.is_staff
 
 
 def can_delete_order(user):
