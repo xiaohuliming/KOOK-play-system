@@ -3,6 +3,7 @@ from flask_login import login_required, current_user
 from app.models.finance import WithdrawRequest, CommissionLog, BalanceLog
 from app.extensions import db
 from app.utils.permissions import admin_required
+from app.services.log_service import log_operation
 from datetime import datetime, timedelta
 from decimal import Decimal
 from sqlalchemy import func
@@ -315,7 +316,10 @@ def audit_withdraw(request_id):
         
     action = request.form.get('action') # approve, reject
     remark = request.form.get('remark')
-    
+    if action not in ('approve', 'reject'):
+        flash('未知审核操作', 'error')
+        return _redirect_after_withdraw_audit(row_id=wr.id)
+
     wr.auditor_id = current_user.id
     wr.audit_at = datetime.utcnow()
     wr.audit_remark = remark
@@ -338,6 +342,13 @@ def audit_withdraw(request_id):
                 reason=f'提现成功 (单号: {wr.id})'
             )
             db.session.add(log)
+            log_operation(
+                current_user.id,
+                'withdraw_approve',
+                'withdraw',
+                wr.id,
+                f'审核通过提现 #{wr.id}，用户ID={wr.user_id}，金额={wr.amount}，备注={remark or "-"}',
+            )
             flash('提现已通过并标记为已打款', 'success')
             
         elif action == 'reject':
@@ -346,6 +357,13 @@ def audit_withdraw(request_id):
             # Refund balance
             wr.user.m_bean += wr.amount
             wr.user.m_bean_frozen -= wr.amount
+            log_operation(
+                current_user.id,
+                'withdraw_reject',
+                'withdraw',
+                wr.id,
+                f'审核拒绝提现 #{wr.id}，用户ID={wr.user_id}，金额={wr.amount}，备注={remark or "-"}',
+            )
             
             flash('提现申请已拒绝，余额已退回', 'success')
             

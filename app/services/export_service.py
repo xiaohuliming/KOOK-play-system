@@ -953,7 +953,7 @@ def export_all_tables_workbook(include_sections=None):
         op_rows.append([
             log.id,
             log.operator_id,
-            _display_name(log.operator, prefer_player=True),
+            log.operator_display_name,
             log.action_type,
             log.target_type or '',
             log.target_id or '',

@@ -21,8 +21,9 @@ def index():
     if action_type:
         query = query.filter(OperationLog.action_type == action_type)
     if operator_name:
-        query = query.join(User, OperationLog.operator_id == User.id).filter(
+        query = query.outerjoin(User, OperationLog.operator_id == User.id).filter(
             or_(
+                OperationLog.operator_name.contains(operator_name),
                 User.player_nickname.contains(operator_name),
                 User.kook_username.contains(operator_name),
                 User.nickname.contains(operator_name),

@@ -7,7 +7,8 @@ class OperationLog(db.Model):
     __tablename__ = 'operation_logs'
 
     id = db.Column(db.Integer, primary_key=True)
-    operator_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    operator_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True, index=True)
+    operator_name = db.Column(db.String(100))
 
     action_type = db.Column(db.String(50), nullable=False, index=True)
     # 常见 action_type:
@@ -25,6 +26,19 @@ class OperationLog(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     operator = db.relationship('User', foreign_keys=[operator_id], backref='operation_logs')
+
+    @property
+    def operator_display_name(self):
+        if self.operator:
+            for candidate in (
+                self.operator.player_nickname,
+                self.operator.kook_username,
+                self.operator.nickname,
+                self.operator.username,
+            ):
+                if candidate:
+                    return candidate
+        return self.operator_name or '已删除用户'
 
     def __repr__(self):
         return f'<OperationLog {self.action_type} by {self.operator_id}>'

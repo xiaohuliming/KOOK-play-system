@@ -34,8 +34,22 @@ def log_operation(operator_id, action_type, target_type=None, target_id=None, de
     if not resolved_operator_id:
         return
 
+    operator = db.session.get(User, resolved_operator_id)
+    operator_name = None
+    if operator:
+        for candidate in (
+            operator.player_nickname,
+            operator.kook_username,
+            operator.nickname,
+            operator.username,
+        ):
+            if candidate:
+                operator_name = candidate
+                break
+
     log = OperationLog(
         operator_id=resolved_operator_id,
+        operator_name=operator_name,
         action_type=action_type,
         target_type=target_type,
         target_id=target_id,

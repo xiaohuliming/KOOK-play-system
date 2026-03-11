@@ -152,7 +152,7 @@ def delete_user(user_id):
         WithdrawRequest.query.filter_by(user_id=uid).delete()
         ClockRecord.query.filter_by(user_id=uid).delete()
         UpgradeRecord.query.filter_by(user_id=uid).delete()
-        OperationLog.query.filter_by(operator_id=uid).delete()
+        OperationLog.query.filter_by(operator_id=uid).update({'operator_id': None}, synchronize_session=False)
 
         # 2. 删除亲密度记录 (boss 或 player 关联)
         Intimacy.query.filter((Intimacy.boss_id == uid) | (Intimacy.player_id == uid)).delete(synchronize_session=False)
