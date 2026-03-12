@@ -76,7 +76,7 @@
         </div>
         <div>
           <p class="text-xs text-slate-400 mb-1">生日日期</p>
-          <p class="text-sm text-slate-800 dark:text-white">{{ user.birthday.strftime('%Y-%m-%d') if user.birthday else '未设置' }}</p>
+          <p class="text-sm text-slate-800 dark:text-white">{{ user.birthday_month_day or '未设置' }}</p>
         </div>
         <div>
           <p class="text-xs text-slate-400 mb-1">第三方关联</p>
@@ -143,13 +143,29 @@
           <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-medium">保存</button>
         </form>
 
-        <form method="post" action="{{ url_for('users.update_info', user_id=user.id) }}" class="flex gap-2 items-end">
+        <form method="post" action="{{ url_for('users.update_info', user_id=user.id) }}" class="flex gap-2 items-end flex-wrap">
           <input type="hidden" name="action" value="update_birthday">
-          <div class="flex-1">
-            <label class="text-xs text-slate-400 mb-1 block">生日日期</label>
-            <input type="date" name="birthday" value="{{ user.birthday.strftime('%Y-%m-%d') if user.birthday else '' }}"
-              class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500">
+          <div>
+            <label class="text-xs text-slate-400 mb-1 block">生日月份</label>
+            <select name="birthday_month"
+              class="w-32 px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500">
+              <option value="">未设置</option>
+              {% for month in range(1, 13) %}
+              <option value="{{ month }}" {% if user.birthday and user.birthday.month == month %}selected{% endif %}>{{ '%02d'|format(month) }} 月</option>
+              {% endfor %}
+            </select>
           </div>
+          <div>
+            <label class="text-xs text-slate-400 mb-1 block">生日日期</label>
+            <select name="birthday_day"
+              class="w-32 px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500">
+              <option value="">未设置</option>
+              {% for day in range(1, 32) %}
+              <option value="{{ day }}" {% if user.birthday and user.birthday.day == day %}selected{% endif %}>{{ '%02d'|format(day) }} 日</option>
+              {% endfor %}
+            </select>
+          </div>
+          <p class="text-[11px] text-slate-400 w-full">仅记录月日，不记录年份；月份和日期同时留空后保存可清空。</p>
           <button type="submit" class="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-xl text-xs font-medium">保存生日</button>
         </form>
 
@@ -411,6 +427,7 @@
             <th class="pb-3 font-medium">状态</th>
             <th class="pb-3 font-medium">客服</th>
             <th class="pb-3 font-medium">日期</th>
+            <th class="pb-3 font-medium text-right">操作</th>
           </tr>
         </thead>
         <tbody>
@@ -426,13 +443,30 @@
             <td class="py-3"><span class="px-2 py-1 bg-{{ order.status_color }}-100 text-{{ order.status_color }}-800 dark:bg-{{ order.status_color }}-900/30 dark:text-{{ order.status_color }}-300 text-xs rounded-full font-medium">{{ order.status_label }}</span></td>
             <td class="py-3 text-slate-500 text-xs">{{ order.staff.staff_display_name if order.staff else '-' }}</td>
             <td class="py-3 text-slate-500 text-xs">{{ fmt_dt(order.created_at, '%m-%d %H:%M') }}</td>
+            <td class="py-3 text-right">
+              <button type="button" onclick="showDetail({{ order.id }})" class="text-purple-500 hover:text-purple-600 text-xs font-medium px-2 py-1 rounded hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors">详情</button>
+            </td>
           </tr>
           {% endfor %}
           {% else %}
-          <tr><td colspan="7" class="py-8 text-center text-slate-500">暂无订单</td></tr>
+          <tr><td colspan="8" class="py-8 text-center text-slate-500">暂无订单</td></tr>
           {% endif %}
         </tbody>
       </table>
+    </div>
+  </div>
+
+  <div id="detail-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden items-center justify-center" onclick="if(event.target===this)closeDetail()">
+    <div class="glass-card p-8 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto custom-scrollbar">
+      <div class="flex justify-between items-center mb-6">
+        <h3 class="text-lg font-bold text-slate-800 dark:text-white">订单详情</h3>
+        <button onclick="closeDetail()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+          <i data-lucide="x" width="20" height="20"></i>
+        </button>
+      </div>
+      <div id="detail-content" class="grid grid-cols-2 gap-4 text-sm">
+        <p class="text-slate-400 col-span-2">加载中...</p>
+      </div>
     </div>
   </div>
 
@@ -535,6 +569,79 @@ document.addEventListener('DOMContentLoaded', function () {
     modal.classList.add('flex');
   }
 });
+</script>
+{% endif %}
+{% if tab == 'orders' %}
+<script>
+function showDetail(orderId) {
+  const modal = document.getElementById('detail-modal');
+  const content = document.getElementById('detail-content');
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+  content.innerHTML = '<p class="text-slate-400 col-span-2">加载中...</p>';
+
+  fetch(`/api/orders/${orderId}/detail`)
+    .then(r => r.json())
+    .then(d => {
+      const tierMap = {casual:'娱乐档',tech:'技术档',god:'大神档',peak:'巅峰档',pro:'巅峰档',devil:'魔王档'};
+      const typeMap = {normal:'常规陪玩',escort:'护航',training:'代练'};
+      content.innerHTML = `
+        <div class="space-y-3">
+          <div><span class="text-slate-400">订单号:</span><span class="ml-2 font-mono font-medium text-slate-800 dark:text-white">${d.order_no}</span></div>
+          <div><span class="text-slate-400">老板:</span><span class="ml-2 font-medium text-slate-800 dark:text-white">${d.boss}${d.boss_kook ? ' ('+d.boss_kook+')' : ''}</span></div>
+          <div><span class="text-slate-400">陪玩:</span><span class="ml-2 font-medium text-slate-800 dark:text-white">${d.player}</span></div>
+          <div><span class="text-slate-400">派单客服:</span><span class="ml-2 text-slate-800 dark:text-white">${d.staff || '-'}</span></div>
+          <div><span class="text-slate-400">游戏:</span><span class="ml-2 text-slate-800 dark:text-white">${d.game} - ${d.item}</span></div>
+          <div><span class="text-slate-400">订单类型:</span><span class="ml-2 text-slate-800 dark:text-white">${typeMap[d.order_type]||d.order_type}</span></div>
+          <div><span class="text-slate-400">档位:</span><span class="ml-2 text-slate-800 dark:text-white">${tierMap[d.price_tier]||d.price_tier}</span></div>
+        </div>
+        <div class="space-y-3">
+          <div><span class="text-slate-400">基础单价:</span><span class="ml-2 font-medium text-slate-800 dark:text-white">¥${d.base_price.toFixed(2)}</span></div>
+          <div><span class="text-slate-400">补充单价:</span><span class="ml-2 text-slate-800 dark:text-white">¥${d.extra_price.toFixed(2)}</span></div>
+          ${d.addon_desc ? `<div><span class="text-slate-400">附加项:</span><span class="ml-2 text-slate-800 dark:text-white">${d.addon_desc} ¥${d.addon_price.toFixed(2)}</span></div>` : ''}
+          <div><span class="text-slate-400">折扣:</span><span class="ml-2 text-slate-800 dark:text-white">${d.boss_discount}%</span></div>
+          <div><span class="text-slate-400">时长:</span><span class="ml-2 text-slate-800 dark:text-white">${d.duration}h</span></div>
+          <div><span class="text-slate-400 font-bold">总价:</span><span class="ml-2 font-bold text-lg text-slate-800 dark:text-white">¥${d.total_price.toFixed(2)}</span></div>
+          ${d.consume_amount > 0 ? `<div><span class="text-slate-400">已扣款:</span><span class="ml-2 text-amber-600 font-medium">¥${d.consume_amount.toFixed(2)}</span></div>` : ''}
+          ${d.refund_amount > 0 ? `<div><span class="text-slate-400">退款给老板:</span><span class="ml-2 text-green-600 font-medium">¥${d.refund_amount.toFixed(2)}</span></div>` : ''}
+          ${d.player_refund_deduct > 0 ? `<div><span class="text-slate-400">扣回陪玩:</span><span class="ml-2 text-red-600 font-medium">${d.player_refund_deduct.toFixed(2)} 小猪粮</span></div>` : ''}
+          <div><span class="text-slate-400">佣金比例:</span><span class="ml-2 text-slate-800 dark:text-white">${d.commission_rate}%</span></div>
+          <div><span class="text-slate-400">陪玩收益:</span><span class="ml-2 text-green-600 font-medium">${d.player_earning.toFixed(2)} 小猪粮</span></div>
+          <div><span class="text-slate-400">平台营收:</span><span class="ml-2 text-purple-600 font-medium">¥${d.shop_earning.toFixed(2)}</span></div>
+        </div>
+        <div class="col-span-2 border-t border-slate-200 dark:border-slate-700 pt-3 space-y-2">
+          <div class="grid grid-cols-2 gap-2 text-xs text-slate-500">
+            <div>派单: ${d.created_at || '-'}</div>
+            <div>申报: ${d.report_time || '-'}</div>
+            <div>确认: ${d.confirm_time || '-'}</div>
+            <div>结算: ${d.pay_time || '-'}</div>
+            ${d.refund_time ? `<div class="text-red-500">退款: ${d.refund_time}</div>` : ''}
+            ${d.refund_balance_time ? `<div class="text-green-600">退款记账: ${d.refund_balance_time}</div>` : ''}
+            ${d.player_refund_deduct_time ? `<div class="text-red-600">扣回记账: ${d.player_refund_deduct_time}</div>` : ''}
+          </div>
+          ${d.refund_reason ? `<div class="text-red-500"><span class="text-slate-400">退款说明:</span> ${d.refund_reason}</div>` : ''}
+          ${d.remark ? `<div class="text-slate-500"><span class="text-slate-400">备注:</span> ${d.remark}</div>` : ''}
+          <div class="flex items-center gap-2 mt-2">
+            <span class="text-slate-400">状态:</span>
+            <span class="font-medium text-slate-800 dark:text-white">${d.status_label}</span>
+            ${d.freeze_status === 'frozen' ? '<span class="px-2 py-0.5 bg-red-100 text-red-600 text-xs rounded-full">冻结中</span>' : ''}
+          </div>
+        </div>
+      `;
+      if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+      }
+    })
+    .catch(() => {
+      content.innerHTML = '<p class="text-red-500 col-span-2">加载失败</p>';
+    });
+}
+
+function closeDetail() {
+  const modal = document.getElementById('detail-modal');
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+}
 </script>
 {% endif %}
 {% endblock %}

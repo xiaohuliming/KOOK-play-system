@@ -1047,6 +1047,27 @@ BROADCAST_TYPES = {
         ),
         'hint': '每天定时检查当日生日用户并私信祝福',
     },
+    'birthday_channel': {
+        'label': '生日频道播报',
+        'group': '频道播报',
+        'target': 'channel',
+        'color': '#F472B6',
+        'title': '生日祝福',
+        'variables': {
+            '{user}': '用户昵称',
+            '{birthday}': '生日日期（MM-DD）',
+            '{year}': '当前年份',
+            '{@user}': '用户提及（失败时回退昵称）',
+            '{@all}': '@全体成员',
+            '{@here}': '@在线成员',
+        },
+        'default_template': (
+            '🎂 **今天是 {user} 的生日**\n---\n'
+            '生日日期: `{birthday}`\n'
+            '一起祝 {@user} 生日快乐，新的这一岁顺顺利利！'
+        ),
+        'hint': '每天定时检查当日生日用户并发送到指定频道，需要填写频道ID',
+    },
     'weekly_withdraw_reminder': {
         'label': '定时提现提醒',
         'group': '定时任务',
@@ -1851,11 +1872,14 @@ def _role_mentions_from_csv(raw_ids: str) -> str:
     return ' '.join([f'(rol){rid}(rol)' for rid in parts])
 
 
-def run_birthday_dm_job():
+def run_birthday_broadcast_job():
     """
-    生日私信任务（按北京时间当日触发）。
-    返回成功发送数量。
+    生日播报任务（按北京时间当日触发）。
+    支持生日私信和生日频道播报。
+    返回成功通知的用户数量。
     """
+    from app.extensions import db
+    from app.models.broadcast import BroadcastConfig
     from app.models.user import User
 
     from app.utils.time_utils import to_beijing
@@ -1867,7 +1891,13 @@ def run_birthday_dm_job():
     day = now_bj.day
     current_year = now_bj.year
 
-    if not _is_broadcast_enabled('birthday_dm'):
+    dm_enabled = _is_broadcast_enabled('birthday_dm')
+    channel_configs = BroadcastConfig.query.filter_by(
+        broadcast_type='birthday_channel',
+        status=True,
+    ).all()
+
+    if not dm_enabled and not channel_configs:
         return 0
 
     users = User.query.filter(
@@ -1876,8 +1906,9 @@ def run_birthday_dm_job():
     ).all()
 
     sent = 0
-    meta = BROADCAST_TYPES['birthday_dm']
-    template = _get_custom_template('birthday_dm') or meta['default_template']
+    dm_meta = BROADCAST_TYPES['birthday_dm']
+    dm_template = _get_custom_template('birthday_dm') or dm_meta['default_template']
+    channel_meta = BROADCAST_TYPES['birthday_channel']
     for user in users:
         if not user.birthday:
             continue
@@ -1885,24 +1916,44 @@ def run_birthday_dm_job():
             continue
         if int(user.birthday_notified_year or 0) >= current_year:
             continue
-        if not user.kook_id or not user.kook_bound:
-            continue
 
+        display_name = _fallback_display_name(user, prefer_player_name=user.has_player_tag) or '-'
         variables = {
-            'user': _fallback_display_name(user),
+            'user': display_name,
             'birthday': f'{month:02d}-{day:02d}',
             'year': str(current_year),
+            '@user': _mention_or_text(user, display_name),
+            '@all': '(met)all(met)',
+            '@here': '(met)here(met)',
         }
-        text = _render_tpl(template, variables)
-        ok = _send_direct_msg(user.kook_id, _build_card(meta['title'], text, meta['color']))
-        if ok:
+        sent_any = False
+
+        if dm_enabled and user.kook_id and user.kook_bound:
+            text = _render_tpl(dm_template, variables)
+            if _send_direct_msg(user.kook_id, _build_card(dm_meta['title'], text, dm_meta['color'])):
+                sent_any = True
+
+        for cfg in channel_configs:
+            if not cfg.channel_id:
+                continue
+            channel_template = (cfg.template or '').strip() or channel_meta['default_template']
+            text = _render_tpl(channel_template, variables)
+            card_json = _build_card(channel_meta['title'], text, channel_meta['color'], image_url=cfg.image_url)
+            if _send_channel_msg(cfg.channel_id, card_json):
+                sent_any = True
+
+        if sent_any:
             user.birthday_notified_year = current_year
             sent += 1
 
     if sent > 0:
-        from app.extensions import db
         db.session.commit()
     return sent
+
+
+def run_birthday_dm_job():
+    """兼容旧调用，统一转到生日播报任务。"""
+    return run_birthday_broadcast_job()
 
 
 def run_weekly_withdraw_reminder_job():

@@ -182,13 +182,13 @@ def init_scheduler(app):
         replace_existing=True
     )
 
-    def birthday_dm_job():
-        """生日私信播报任务（北京时间）"""
+    def birthday_broadcast_job():
+        """生日播报任务（北京时间）"""
         with app.app_context():
-            from app.services.kook_service import run_birthday_dm_job
-            count = run_birthday_dm_job()
+            from app.services.kook_service import run_birthday_broadcast_job
+            count = run_birthday_broadcast_job()
             if count > 0:
-                app.logger.info(f'[Scheduler] 生日祝福私信发送 {count} 人')
+                app.logger.info(f'[Scheduler] 生日祝福播报 {count} 人')
 
     def weekly_withdraw_reminder_job():
         """周定时提现提醒任务（北京时间）"""
@@ -199,10 +199,10 @@ def init_scheduler(app):
                 app.logger.info(f'[Scheduler] 定时提现提醒发送 {count} 条')
 
     scheduler.add_job(
-        birthday_dm_job,
+        birthday_broadcast_job,
         trigger=IntervalTrigger(minutes=30),
         id='birthday_dm_job',
-        name='生日私信播报',
+        name='生日播报',
         replace_existing=True
     )
 

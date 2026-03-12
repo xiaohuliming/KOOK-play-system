@@ -60,7 +60,7 @@ def add():
         return redirect(url_for('broadcast_admin.index'))
 
     channel_id = request.form.get('channel_id', '').strip()
-    if broadcast_type in ('recharge', 'gift', 'upgrade', 'channel_join', 'channel_leave', 'weekly_withdraw_reminder') and not channel_id:
+    if BROADCAST_TYPES[broadcast_type].get('target') == 'channel' and not channel_id:
         flash('该播报类型需要填写 KOOK 频道ID', 'error')
         return redirect(url_for('broadcast_admin.index'))
 
@@ -109,7 +109,7 @@ def edit(config_id):
     config.threshold = Decimal(request.form.get('threshold', '0') or '0')
     config.template = request.form.get('template', '')
     config.channel_id = request.form.get('channel_id', '').strip()
-    if config.broadcast_type in ('recharge', 'gift', 'upgrade', 'channel_join', 'channel_leave', 'weekly_withdraw_reminder') and not config.channel_id:
+    if BROADCAST_TYPES.get(config.broadcast_type, {}).get('target') == 'channel' and not config.channel_id:
         flash('该播报类型需要填写 KOOK 频道ID', 'error')
         return redirect(url_for('broadcast_admin.index'))
     config.image_url = request.form.get('image_url', '').strip() or None

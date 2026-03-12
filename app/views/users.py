@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify
 from flask_login import login_required, current_user
 from sqlalchemy import or_, func
-from datetime import datetime
+from datetime import datetime, date
 from decimal import Decimal
 
 from app.models.user import User
@@ -15,6 +15,40 @@ from app.services.log_service import log_operation
 from app.utils.permissions import staff_required, admin_required
 
 users_bp = Blueprint('users', __name__)
+
+_BIRTHDAY_STORE_YEAR = 2000
+
+
+def _format_birthday_month_day(value):
+    if not value:
+        return '-'
+    return value.strftime('%m-%d')
+
+
+def _parse_birthday_input(month_raw, day_raw, birthday_raw):
+    month_text = (month_raw or '').strip()
+    day_text = (day_raw or '').strip()
+    birthday_text = (birthday_raw or '').strip()
+
+    if month_text or day_text:
+        if not month_text or not day_text:
+            raise ValueError('请同时选择生日月份和日期')
+        month = int(month_text)
+        day = int(day_text)
+        return date(_BIRTHDAY_STORE_YEAR, month, day)
+
+    if not birthday_text:
+        return None
+
+    normalized = birthday_text.replace('/', '-')
+    try:
+        if normalized.count('-') == 1:
+            month, day = [int(part) for part in normalized.split('-', 1)]
+            return date(_BIRTHDAY_STORE_YEAR, month, day)
+        parsed = datetime.strptime(normalized, '%Y-%m-%d').date()
+        return date(_BIRTHDAY_STORE_YEAR, parsed.month, parsed.day)
+    except Exception as exc:
+        raise ValueError('生日格式无效，请使用月日') from exc
 
 
 @users_bp.route('/create', methods=['POST'])
@@ -495,8 +529,11 @@ def update_info(user_id):
             flash('；'.join(denied_msgs), 'error')
 
     elif action == 'update_birthday':
-        raw_birthday = (request.form.get('birthday') or '').strip()
-        if not raw_birthday:
+        raw_birthday = request.form.get('birthday')
+        raw_month = request.form.get('birthday_month')
+        raw_day = request.form.get('birthday_day')
+
+        if not (raw_birthday or raw_month or raw_day):
             user.birthday = None
             user.birthday_notified_year = 0
             log_operation(current_user.id, 'user_update_birthday', 'user', user.id, '清空生日日期')
@@ -505,12 +542,12 @@ def update_info(user_id):
             return redirect(url_for('users.detail', user_id=user_id, tab='info'))
 
         try:
-            parsed = datetime.strptime(raw_birthday, '%Y-%m-%d').date()
-        except Exception:
-            flash('生日格式无效，请使用 YYYY-MM-DD', 'error')
+            parsed = _parse_birthday_input(raw_month, raw_day, raw_birthday)
+        except ValueError as exc:
+            flash(str(exc), 'error')
             return redirect(url_for('users.detail', user_id=user_id, tab='info'))
 
-        old_birthday = user.birthday.strftime('%Y-%m-%d') if user.birthday else '-'
+        old_birthday = _format_birthday_month_day(user.birthday)
         user.birthday = parsed
         user.birthday_notified_year = 0
         log_operation(
@@ -518,7 +555,7 @@ def update_info(user_id):
             'user_update_birthday',
             'user',
             user.id,
-            f'生日日期: {old_birthday} -> {parsed.strftime("%Y-%m-%d")}',
+            f'生日日期: {old_birthday} -> {_format_birthday_month_day(parsed)}',
         )
         db.session.commit()
         flash('生日已更新', 'success')

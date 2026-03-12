@@ -150,6 +150,13 @@ class User(UserMixin, db.Model):
         return f'https://api.dicebear.com/7.x/notionists/svg?seed={self.username}&backgroundColor=e8eaf6'
 
     @property
+    def birthday_month_day(self):
+        """生日月日展示文本（忽略年份）。"""
+        if not self.birthday:
+            return ''
+        return self.birthday.strftime('%m-%d')
+
+    @property
     def is_god(self):
         return self.has_role('god')
     

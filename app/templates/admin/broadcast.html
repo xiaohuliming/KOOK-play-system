@@ -32,7 +32,7 @@
           </tr>
         </thead>
         <tbody>
-          {% set channel_types = ['recharge', 'gift', 'upgrade', 'channel_join', 'channel_leave'] %}
+          {% set channel_types = ['recharge', 'gift', 'upgrade', 'channel_join', 'channel_leave', 'birthday_channel'] %}
           {% set has_channel = [] %}
           {% for c in configs if c.broadcast_type in channel_types %}
             {% set _ = has_channel.append(1) %}
