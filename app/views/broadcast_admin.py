@@ -5,12 +5,18 @@ from flask_login import login_required, current_user
 
 from app.extensions import db
 from app.models.broadcast import BroadcastConfig
-from app.models.vip import VipLevel
 from app.utils.permissions import admin_required
 from app.services.log_service import log_operation
+from app.services import upload_service
 from app.services.kook_service import BROADCAST_TYPES, fetch_kook_role_catalog
 
 broadcast_admin_bp = Blueprint('broadcast_admin', __name__, template_folder='../templates')
+
+UPGRADE_TARGET_LEVEL_OPTIONS = (
+    ('vip', 'VIP'),
+    ('svip', 'SVIP'),
+    ('vic', 'VIC'),
+)
 
 
 def _normalize_schedule_time(raw_value):
@@ -41,17 +47,49 @@ def _normalize_role_ids(raw_value):
     return ','.join(cleaned)
 
 
+def _resolve_uploaded_image(current_image=None):
+    file = request.files.get('image_file')
+    remove_image = request.form.get('remove_image') == 'on'
+
+    if file and getattr(file, 'filename', ''):
+        path, error = upload_service.save_file(file, 'broadcasts')
+        if error:
+            return current_image, error
+        return path, None
+
+    if remove_image:
+        return None, None
+
+    return current_image, None
+
+
+def _normalize_upgrade_target_level(raw_value):
+    text = str(raw_value or '').strip().lower()
+    if not text:
+        return None
+    if 'vic' in text:
+        return 'vic'
+    if 'svip' in text:
+        return 'svip'
+    if 'vip' in text:
+        return 'vip'
+    return None
+
+
 @broadcast_admin_bp.route('/')
 @login_required
 @admin_required
 def index():
     configs = BroadcastConfig.query.order_by(BroadcastConfig.broadcast_type, BroadcastConfig.threshold).all()
-    vip_levels = VipLevel.query.order_by(VipLevel.sort_order).all()
+    for config in configs:
+        bucket = _normalize_upgrade_target_level(getattr(config, 'target_level', None))
+        config.target_level_bucket = bucket
+        config.target_level_label = bucket.upper() if bucket else '通用'
     return render_template(
         'admin/broadcast.html',
         configs=configs,
         broadcast_types=BROADCAST_TYPES,
-        vip_levels=vip_levels,
+        upgrade_target_level_options=UPGRADE_TARGET_LEVEL_OPTIONS,
     )
 
 
@@ -85,10 +123,15 @@ def add():
         schedule_time = _normalize_schedule_time(request.form.get('schedule_time', '12:00'))
         mention_role_ids = _normalize_role_ids(request.form.get('mention_role_ids', ''))
     elif broadcast_type == 'upgrade':
-        target_level = (request.form.get('target_level') or '').strip() or None
-        if target_level and not VipLevel.query.filter_by(name=target_level).first():
+        target_level = _normalize_upgrade_target_level(request.form.get('target_level'))
+        if (request.form.get('target_level') or '').strip() and not target_level:
             flash('升级播报目标等级无效', 'error')
             return redirect(url_for('broadcast_admin.index'))
+
+    image_url, image_error = _resolve_uploaded_image()
+    if image_error:
+        flash(f'图片上传失败: {image_error}', 'error')
+        return redirect(url_for('broadcast_admin.index'))
 
     config = BroadcastConfig(
         broadcast_type=broadcast_type,
@@ -96,7 +139,7 @@ def add():
         template=request.form.get('template', ''),
         target_level=target_level,
         channel_id=channel_id,
-        image_url=request.form.get('image_url', '').strip() or None,
+        image_url=image_url,
         schedule_weekday=schedule_weekday,
         schedule_time=schedule_time,
         mention_role_ids=mention_role_ids,
@@ -127,7 +170,6 @@ def edit(config_id):
     if BROADCAST_TYPES.get(config.broadcast_type, {}).get('target') == 'channel' and not config.channel_id:
         flash('该播报类型需要填写 KOOK 频道ID', 'error')
         return redirect(url_for('broadcast_admin.index'))
-    config.image_url = request.form.get('image_url', '').strip() or None
 
     if config.broadcast_type == 'weekly_withdraw_reminder':
         weekday_raw = request.form.get('schedule_weekday', '6')
@@ -145,11 +187,17 @@ def edit(config_id):
         config.last_sent_at = None
 
     if config.broadcast_type == 'upgrade':
-        target_level = (request.form.get('target_level') or '').strip() or None
-        if target_level and not VipLevel.query.filter_by(name=target_level).first():
+        target_level = _normalize_upgrade_target_level(request.form.get('target_level'))
+        if (request.form.get('target_level') or '').strip() and not target_level:
             flash('升级播报目标等级无效', 'error')
             return redirect(url_for('broadcast_admin.index'))
         config.target_level = target_level
+
+    image_url, image_error = _resolve_uploaded_image(config.image_url)
+    if image_error:
+        flash(f'图片上传失败: {image_error}', 'error')
+        return redirect(url_for('broadcast_admin.index'))
+    config.image_url = image_url
 
     config.status = 'status' in request.form
     db.session.commit()

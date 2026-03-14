@@ -24,7 +24,7 @@ class CommissionLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
     
-    change_type = db.Column(db.String(20), nullable=False) # order_income, gift_income, withdraw, refund_deduct
+    change_type = db.Column(db.String(20), nullable=False) # order_income, gift_income, staff_commission, withdraw, refund_deduct, staff_refund_deduct
     amount = db.Column(db.Numeric(12, 2), nullable=False)
     balance_after = db.Column(db.Numeric(12, 2), nullable=False)
     

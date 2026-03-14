@@ -37,6 +37,14 @@
           {% set has_channel = [] %}
           {% for c in configs if c.broadcast_type in channel_types %}
             {% set _ = has_channel.append(1) %}
+            {% set preview_image_url = '' %}
+            {% if c.image_url %}
+              {% if c.image_url.startswith('http://') or c.image_url.startswith('https://') or c.image_url.startswith('/') %}
+                {% set preview_image_url = c.image_url %}
+              {% else %}
+                {% set preview_image_url = url_for('static', filename=c.image_url) %}
+              {% endif %}
+            {% endif %}
           <tr class="border-b border-white/20 dark:border-slate-700/50 hover:bg-white/20 dark:hover:bg-slate-700/30 transition-colors text-sm">
             <td class="py-3">
               <span class="px-2 py-1 text-xs rounded-full font-medium
@@ -51,7 +59,7 @@
             <td class="py-3 text-xs text-slate-500 dark:text-slate-400">
               {% if c.broadcast_type == 'upgrade' %}
               <span class="px-2 py-1 rounded-full {% if c.target_level %}bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300{% else %}bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300{% endif %}">
-                {{ c.target_level or '通用' }}
+                {{ c.target_level_label if c.target_level_label is defined else ((c.target_level or '通用') | upper) }}
               </span>
               {% else %}
               -
@@ -63,7 +71,7 @@
             </td>
             <td class="py-3">
               {% if c.image_url %}
-              <img src="{{ c.image_url }}" class="w-10 h-10 rounded object-cover" title="{{ c.image_url }}">
+              <img src="{{ preview_image_url }}" class="w-10 h-10 rounded object-cover" title="{{ c.image_url }}">
               {% else %}
               <span class="text-slate-400 text-xs">-</span>
               {% endif %}
@@ -78,7 +86,7 @@
             </td>
             <td class="py-3 text-right">
               <div class="flex justify-end gap-1">
-                <button onclick='showEditModal({{ c.id }}, "{{ c.broadcast_type }}", "{{ c.threshold }}", {{ c.template|tojson }}, "{{ c.channel_id or "" }}", {{ "true" if c.status else "false" }}, {{ c.image_url|tojson }}, {{ c.target_level|tojson }})' class="text-purple-500 hover:text-purple-600 text-xs font-medium px-2 py-1 rounded hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors">编辑</button>
+                <button onclick='showEditModal({{ c.id }}, "{{ c.broadcast_type }}", "{{ c.threshold }}", {{ c.template|tojson }}, "{{ c.channel_id or "" }}", {{ "true" if c.status else "false" }}, {{ preview_image_url|tojson }}, {{ (c.target_level_bucket if c.target_level_bucket is defined else c.target_level)|tojson }})' class="text-purple-500 hover:text-purple-600 text-xs font-medium px-2 py-1 rounded hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors">编辑</button>
                 <form action="{{ url_for('broadcast_admin.delete', config_id=c.id) }}" method="post" class="inline">
                   <button type="submit" onclick="return confirm('确认删除此播报配置?')" class="text-red-500 hover:text-red-600 text-xs font-medium px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">删除</button>
                 </form>
@@ -115,6 +123,14 @@
           {% set has_dm = [] %}
           {% for c in configs if c.broadcast_type in dm_types %}
             {% set _ = has_dm.append(1) %}
+            {% set preview_image_url = '' %}
+            {% if c.image_url %}
+              {% if c.image_url.startswith('http://') or c.image_url.startswith('https://') or c.image_url.startswith('/') %}
+                {% set preview_image_url = c.image_url %}
+              {% else %}
+                {% set preview_image_url = url_for('static', filename=c.image_url) %}
+              {% endif %}
+            {% endif %}
           <tr class="border-b border-white/20 dark:border-slate-700/50 hover:bg-white/20 dark:hover:bg-slate-700/30 transition-colors text-sm">
             <td class="py-3">
               <span class="px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 text-xs rounded-full font-medium">
@@ -133,7 +149,7 @@
             </td>
             <td class="py-3 text-right">
               <div class="flex justify-end gap-1">
-                <button onclick='showEditModal({{ c.id }}, "{{ c.broadcast_type }}", "{{ c.threshold }}", {{ c.template|tojson }}, "{{ c.channel_id or "" }}", {{ "true" if c.status else "false" }}, {{ c.image_url|tojson }}, {{ c.target_level|tojson }})' class="text-purple-500 hover:text-purple-600 text-xs font-medium px-2 py-1 rounded hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors">编辑</button>
+                <button onclick='showEditModal({{ c.id }}, "{{ c.broadcast_type }}", "{{ c.threshold }}", {{ c.template|tojson }}, "{{ c.channel_id or "" }}", {{ "true" if c.status else "false" }}, {{ preview_image_url|tojson }}, {{ (c.target_level_bucket if c.target_level_bucket is defined else c.target_level)|tojson }})' class="text-purple-500 hover:text-purple-600 text-xs font-medium px-2 py-1 rounded hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors">编辑</button>
                 <form action="{{ url_for('broadcast_admin.delete', config_id=c.id) }}" method="post" class="inline">
                   <button type="submit" onclick="return confirm('确认删除此通知配置?')" class="text-red-500 hover:text-red-600 text-xs font-medium px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">删除</button>
                 </form>
@@ -174,6 +190,14 @@
           {% set weekday_map = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'] %}
           {% for c in configs if c.broadcast_type in schedule_types %}
             {% set _ = has_schedule.append(1) %}
+            {% set preview_image_url = '' %}
+            {% if c.image_url %}
+              {% if c.image_url.startswith('http://') or c.image_url.startswith('https://') or c.image_url.startswith('/') %}
+                {% set preview_image_url = c.image_url %}
+              {% else %}
+                {% set preview_image_url = url_for('static', filename=c.image_url) %}
+              {% endif %}
+            {% endif %}
           <tr class="border-b border-white/20 dark:border-slate-700/50 hover:bg-white/20 dark:hover:bg-slate-700/30 transition-colors text-sm">
             <td class="py-3">
               <span class="px-2 py-1 bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300 text-xs rounded-full font-medium">
@@ -198,7 +222,7 @@
             </td>
             <td class="py-3 text-right">
               <div class="flex justify-end gap-1">
-                <button onclick='showEditModal({{ c.id }}, "{{ c.broadcast_type }}", "{{ c.threshold }}", {{ c.template|tojson }}, "{{ c.channel_id or "" }}", {{ "true" if c.status else "false" }}, {{ c.image_url|tojson }}, {{ c.target_level|tojson }}, "{{ c.schedule_weekday if c.schedule_weekday is not none else 6 }}", "{{ c.schedule_time or "12:00" }}", {{ (c.mention_role_ids or "")|tojson }})' class="text-purple-500 hover:text-purple-600 text-xs font-medium px-2 py-1 rounded hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors">编辑</button>
+                <button onclick='showEditModal({{ c.id }}, "{{ c.broadcast_type }}", "{{ c.threshold }}", {{ c.template|tojson }}, "{{ c.channel_id or "" }}", {{ "true" if c.status else "false" }}, {{ preview_image_url|tojson }}, {{ (c.target_level_bucket if c.target_level_bucket is defined else c.target_level)|tojson }}, "{{ c.schedule_weekday if c.schedule_weekday is not none else 6 }}", "{{ c.schedule_time or "12:00" }}", {{ (c.mention_role_ids or "")|tojson }})' class="text-purple-500 hover:text-purple-600 text-xs font-medium px-2 py-1 rounded hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors">编辑</button>
                 <form action="{{ url_for('broadcast_admin.delete', config_id=c.id) }}" method="post" class="inline">
                   <button type="submit" onclick="return confirm('确认删除此定时任务配置?')" class="text-red-500 hover:text-red-600 text-xs font-medium px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">删除</button>
                 </form>
@@ -235,6 +259,14 @@
           {% set has_lottery_tpl = [] %}
           {% for c in configs if c.broadcast_type in lottery_tpl_types %}
             {% set _ = has_lottery_tpl.append(1) %}
+            {% set preview_image_url = '' %}
+            {% if c.image_url %}
+              {% if c.image_url.startswith('http://') or c.image_url.startswith('https://') or c.image_url.startswith('/') %}
+                {% set preview_image_url = c.image_url %}
+              {% else %}
+                {% set preview_image_url = url_for('static', filename=c.image_url) %}
+              {% endif %}
+            {% endif %}
           <tr class="border-b border-white/20 dark:border-slate-700/50 hover:bg-white/20 dark:hover:bg-slate-700/30 transition-colors text-sm">
             <td class="py-3">
               <span class="px-2 py-1 bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 text-xs rounded-full font-medium">
@@ -253,7 +285,7 @@
             </td>
             <td class="py-3 text-right">
               <div class="flex justify-end gap-1">
-                <button onclick='showEditModal({{ c.id }}, "{{ c.broadcast_type }}", "{{ c.threshold }}", {{ c.template|tojson }}, "{{ c.channel_id or "" }}", {{ "true" if c.status else "false" }}, {{ c.image_url|tojson }}, {{ c.target_level|tojson }})' class="text-purple-500 hover:text-purple-600 text-xs font-medium px-2 py-1 rounded hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors">编辑</button>
+                <button onclick='showEditModal({{ c.id }}, "{{ c.broadcast_type }}", "{{ c.threshold }}", {{ c.template|tojson }}, "{{ c.channel_id or "" }}", {{ "true" if c.status else "false" }}, {{ preview_image_url|tojson }}, {{ (c.target_level_bucket if c.target_level_bucket is defined else c.target_level)|tojson }})' class="text-purple-500 hover:text-purple-600 text-xs font-medium px-2 py-1 rounded hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors">编辑</button>
                 <form action="{{ url_for('broadcast_admin.delete', config_id=c.id) }}" method="post" class="inline">
                   <button type="submit" onclick="return confirm('确认删除此模板配置?')" class="text-red-500 hover:text-red-600 text-xs font-medium px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">删除</button>
                 </form>
@@ -299,7 +331,7 @@
 <div id="config-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden items-center justify-center" onclick="if(event.target===this){this.classList.add('hidden');this.classList.remove('flex')}">
   <div class="glass-card p-8 max-w-6xl w-full mx-4 max-h-[92vh] overflow-y-auto">
     <h3 id="modal-title" class="text-lg font-bold text-slate-800 dark:text-white mb-4">添加播报配置</h3>
-    <form id="config-form" method="post" class="space-y-4">
+    <form id="config-form" method="post" enctype="multipart/form-data" class="space-y-4">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1 block">类型</label>
@@ -347,11 +379,11 @@
         <select name="target_level" id="f_target_level"
           class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm">
           <option value="">通用模板（所有等级）</option>
-          {% for vip in vip_levels %}
-          <option value="{{ vip.name }}">{{ vip.name }}</option>
+          {% for value, label in upgrade_target_level_options %}
+          <option value="{{ value }}">{{ label }}</option>
           {% endfor %}
         </select>
-        <p class="text-[11px] text-slate-400 mt-1">仅升级播报使用；选择后只会在升级到该等级时命中，留空则作为通用回退模板。</p>
+        <p class="text-[11px] text-slate-400 mt-1">仅升级播报使用；只区分 VIP、SVIP、VIC 三档，留空则作为通用回退模板。</p>
       </div>
 
       <div id="f_schedule_wrap" class="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -465,15 +497,22 @@
         <span id="f_vars_list"></span>
       </div>
 
-      {# 图片 URL #}
+      {# 图片上传 #}
       <div id="f_image_wrap">
-        <label class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1 block">图片/动图 URL（可选）</label>
-        <input type="text" name="image_url" id="f_image_url"
-          class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm"
-          placeholder="https://example.com/image.png" oninput="updateImagePreview()">
-        <div id="image-preview" class="mt-2 hidden">
-          <img id="image-preview-img" class="max-w-[200px] max-h-[120px] rounded-lg border border-slate-200 dark:border-slate-700 object-cover" alt="图片预览">
-        </div>
+        <label class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1 block">图片/动图（可选）</label>
+        <input type="hidden" id="f_existing_image_url" value="">
+        <label class="block border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-4 text-center hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer group">
+          <input type="file" name="image_file" id="f_image_file" accept="image/png,image/jpeg,image/gif" class="sr-only" onchange="updateImagePreview()">
+          <div id="image-upload-placeholder">
+            <i data-lucide="image-plus" width="26" height="26" class="mx-auto text-slate-400 mb-2 group-hover:text-purple-500 transition-colors"></i>
+            <span class="text-xs text-slate-500 group-hover:text-purple-500 transition-colors">点击上传图片/动图</span>
+          </div>
+          <img id="image-preview-img" src="#" alt="图片预览" class="hidden max-h-40 mx-auto rounded-lg border border-slate-200 dark:border-slate-700 object-cover">
+        </label>
+        <p id="image-preview-tip" class="mt-2 text-[11px] text-slate-400">支持 `png/jpg/jpeg/gif`，不重新上传时会保留当前图片。</p>
+        <label id="f_remove_image_wrap" class="mt-2 hidden items-center gap-2 text-xs text-slate-500">
+          <input type="checkbox" name="remove_image" id="f_remove_image" class="rounded" onchange="updateImagePreview()"> 清空当前图片
+        </label>
       </div>
 
       <label class="flex items-center gap-2 text-sm" id="f_status_wrap">
@@ -890,7 +929,7 @@ function updatePreview() {
   const text = document.getElementById('f_template').value;
   const type = document.getElementById('f_type').value;
   const meta = TYPES[type];
-  const imageUrl = document.getElementById('f_image_url').value.trim();
+  const imageUrl = getActiveImageUrl();
 
   const color = meta ? meta.color : '#7C3AED';
   const displayText = text || (meta ? meta.default_template : '');
@@ -918,19 +957,61 @@ function escapeHtml(text) {
 
 // ===== 图片预览 =====
 
+function getActiveImageUrl() {
+  const existingUrl = document.getElementById('f_existing_image_url').value.trim();
+  const removeChecked = document.getElementById('f_remove_image').checked;
+  const previewImg = document.getElementById('image-preview-img');
+  const uploadedUrl = previewImg.dataset.uploadUrl || '';
+  if (uploadedUrl) return uploadedUrl;
+  if (removeChecked) return '';
+  return existingUrl;
+}
+
 function updateImagePreview() {
-  const url = document.getElementById('f_image_url').value.trim();
-  const preview = document.getElementById('image-preview');
+  const input = document.getElementById('f_image_file');
   const img = document.getElementById('image-preview-img');
-  if (url) {
-    img.src = url;
-    img.onerror = function() { preview.classList.add('hidden'); };
-    img.onload = function() { preview.classList.remove('hidden'); };
-    preview.classList.remove('hidden');
-  } else {
-    preview.classList.add('hidden');
+  const placeholder = document.getElementById('image-upload-placeholder');
+  const tip = document.getElementById('image-preview-tip');
+  const removeWrap = document.getElementById('f_remove_image_wrap');
+  const removeChecked = document.getElementById('f_remove_image').checked;
+  const existingUrl = document.getElementById('f_existing_image_url').value.trim();
+
+  function render(url, tipText) {
+    if (url) {
+      img.src = url;
+      img.classList.remove('hidden');
+      placeholder.classList.add('hidden');
+      tip.textContent = tipText;
+    } else {
+      img.src = '#';
+      img.classList.add('hidden');
+      placeholder.classList.remove('hidden');
+      tip.textContent = tipText || '支持 png/jpg/jpeg/gif，不重新上传时会保留当前图片。';
+    }
+    updatePreview();
   }
-  updatePreview();
+
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      img.dataset.uploadUrl = e.target.result || '';
+      render(img.dataset.uploadUrl, '已选择新图片，保存后会覆盖当前图片。');
+    };
+    reader.readAsDataURL(input.files[0]);
+    if (removeWrap) removeWrap.style.display = existingUrl ? 'flex' : 'none';
+    return;
+  }
+
+  img.dataset.uploadUrl = '';
+  if (removeWrap) {
+    removeWrap.style.display = existingUrl ? 'flex' : 'none';
+  }
+
+  if (!removeChecked && existingUrl) {
+    render(existingUrl, '当前已设置图片，不重新上传时会保留。');
+  } else {
+    render('', removeChecked ? '当前图片将在保存后清空。' : '支持 png/jpg/jpeg/gif，不重新上传时会保留当前图片。');
+  }
 }
 
 // ===== 弹窗控制 =====
@@ -952,11 +1033,15 @@ function showAddModal() {
   document.getElementById('f_schedule_weekday').value = '6';
   document.getElementById('f_schedule_time').value = '12:00';
   document.getElementById('f_mention_role_ids').value = '';
-  document.getElementById('f_image_url').value = '';
-  document.getElementById('image-preview').classList.add('hidden');
+  document.getElementById('f_existing_image_url').value = '';
+  document.getElementById('f_image_file').value = '';
+  document.getElementById('f_remove_image').checked = false;
+  document.getElementById('image-preview-img').dataset.uploadUrl = '';
+  document.getElementById('f_remove_image_wrap').style.display = 'none';
   document.getElementById('f_status').checked = true;
   document.getElementById('f_status_wrap').classList.add('hidden');
   onTypeChange();
+  updateImagePreview();
   const m = document.getElementById('config-modal');
   m.classList.remove('hidden'); m.classList.add('flex');
   // 重新初始化 Lucide 图标（工具栏按钮）
@@ -974,7 +1059,10 @@ function showEditModal(id, type, threshold, template, channel, status, imageUrl,
   document.getElementById('f_schedule_weekday').value = (scheduleWeekday !== undefined && scheduleWeekday !== null && scheduleWeekday !== '') ? String(scheduleWeekday) : '6';
   document.getElementById('f_schedule_time').value = scheduleTime || '12:00';
   document.getElementById('f_mention_role_ids').value = mentionRoleIds || '';
-  document.getElementById('f_image_url').value = imageUrl || '';
+  document.getElementById('f_existing_image_url').value = imageUrl || '';
+  document.getElementById('f_image_file').value = '';
+  document.getElementById('f_remove_image').checked = false;
+  document.getElementById('image-preview-img').dataset.uploadUrl = '';
   document.getElementById('f_status').checked = (status === true || status === 'true');
   document.getElementById('f_status_wrap').classList.remove('hidden');
   onTypeChange();

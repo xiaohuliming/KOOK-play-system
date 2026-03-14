@@ -1496,6 +1496,18 @@ def push_upgrade_broadcast(user, from_level, to_level):
     """VIP升级播报 → 频道"""
     from app.models.broadcast import BroadcastConfig
 
+    def _normalize_upgrade_target_level(value):
+        text = str(value or '').strip().lower()
+        if not text:
+            return ''
+        if 'vic' in text:
+            return 'vic'
+        if 'svip' in text:
+            return 'svip'
+        if 'vip' in text:
+            return 'vip'
+        return ''
+
     configs = BroadcastConfig.query.filter_by(
         broadcast_type='upgrade', status=True
     ).all()
@@ -1520,36 +1532,38 @@ def push_upgrade_broadcast(user, from_level, to_level):
     }
 
     meta = BROADCAST_TYPES['upgrade']
+    to_level_bucket = _normalize_upgrade_target_level(to_level)
     level_configs = [
         cfg for cfg in configs
-        if str(getattr(cfg, 'target_level', '') or '').strip() == str(to_level or '').strip()
+        if _normalize_upgrade_target_level(getattr(cfg, 'target_level', '') or '') == to_level_bucket
     ]
     generic_configs = [
         cfg for cfg in configs
-        if not str(getattr(cfg, 'target_level', '') or '').strip()
+        if not _normalize_upgrade_target_level(getattr(cfg, 'target_level', '') or '')
     ]
 
     selected_configs = [cfg for cfg in level_configs if cfg.channel_id]
     source = 'level'
     if not selected_configs:
         if level_configs:
-            logger.warning('[KOOK] 升级播报等级专属配置缺少频道ID，回退通用模板 level=%s', to_level)
+            logger.warning('[KOOK] 升级播报等级专属配置缺少频道ID，回退通用模板 level=%s bucket=%s', to_level, to_level_bucket or '-')
         selected_configs = [cfg for cfg in generic_configs if cfg.channel_id]
         source = 'generic'
 
     if not selected_configs:
-        logger.warning('[KOOK] 升级播报跳过: 未找到可用频道配置 level=%s', to_level)
+        logger.warning('[KOOK] 升级播报跳过: 未找到可用频道配置 level=%s bucket=%s', to_level, to_level_bucket or '-')
         return 0
 
     sent = 0
     for cfg in selected_configs:
         template = (cfg.template or '').strip() or meta['default_template']
         logger.info(
-            '[KOOK] 升级播报模板来源: %s (cfg_id=%s, target_level=%s, to_level=%s)',
+            '[KOOK] 升级播报模板来源: %s (cfg_id=%s, target_level=%s, to_level=%s, bucket=%s)',
             source,
             getattr(cfg, 'id', '-'),
-            getattr(cfg, 'target_level', '') or 'ALL',
+            (_normalize_upgrade_target_level(getattr(cfg, 'target_level', '') or '') or 'ALL').upper(),
             to_level,
+            (to_level_bucket or 'ALL').upper(),
         )
         text = _render_tpl(template, variables)
         card_json = _build_card(meta['title'], text, meta['color'], image_url=cfg.image_url)
