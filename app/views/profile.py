@@ -6,6 +6,7 @@ from app.models.finance import CommissionLog, BalanceLog
 from app.extensions import db
 
 profile_bp = Blueprint('profile', __name__)
+_EXCLUDED_BEAN_TYPES = ('staff_commission', 'staff_refund_deduct')
 
 @profile_bp.route('/')
 @login_required
@@ -55,6 +56,7 @@ def index():
 
     elif current_tab == 'earnings' and current_user.is_player:
         query = CommissionLog.query.filter(CommissionLog.user_id == current_user.id)
+        query = query.filter(~CommissionLog.change_type.in_(_EXCLUDED_BEAN_TYPES))
 
         if start_date:
             try:
@@ -75,6 +77,7 @@ def index():
     elif current_tab == 'wallet':
         balance_query = BalanceLog.query.filter(BalanceLog.user_id == current_user.id)
         bean_query = CommissionLog.query.filter(CommissionLog.user_id == current_user.id)
+        bean_query = bean_query.filter(~CommissionLog.change_type.in_(_EXCLUDED_BEAN_TYPES))
 
         if start_date:
             try:

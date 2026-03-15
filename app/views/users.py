@@ -226,6 +226,7 @@ def detail(user_id):
     elif tab == 'commission':
         # 小猪粮日志
         q = CommissionLog.query.filter_by(user_id=user_id)
+        q = q.filter(~CommissionLog.change_type.in_(['staff_commission', 'staff_refund_deduct']))
         change_type = request.args.get('change_type', '')
         allowed_change_types = {
             'order_income',

@@ -1,12 +1,13 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app
 from flask_login import login_required, current_user
 from app.models.finance import WithdrawRequest, CommissionLog, BalanceLog
+from app.models.user import User
 from app.extensions import db
 from app.utils.permissions import admin_required
 from app.services.log_service import log_operation
 from datetime import datetime, timedelta
 from decimal import Decimal
-from sqlalchemy import func
+from sqlalchemy import func, or_
 import os
 import uuid
 from werkzeug.utils import secure_filename
@@ -267,6 +268,7 @@ def withdraw():
 @admin_required
 def withdraw_list():
     status = request.args.get('status', 'all')
+    keyword = request.args.get('q', '').strip()
 
     total_withdraw_amount = db.session.query(
         func.coalesce(func.sum(WithdrawRequest.amount), 0)
@@ -285,6 +287,19 @@ def withdraw_list():
     
     if status != 'all':
         query = query.filter(WithdrawRequest.status == status)
+
+    if keyword:
+        keyword_filters = [
+            User.player_nickname.ilike(f'%{keyword}%'),
+            User.kook_username.ilike(f'%{keyword}%'),
+            User.nickname.ilike(f'%{keyword}%'),
+            User.username.ilike(f'%{keyword}%'),
+            User.kook_id.ilike(f'%{keyword}%'),
+            User.user_code.ilike(f'%{keyword}%'),
+        ]
+        if keyword.isdigit():
+            keyword_filters.append(WithdrawRequest.id == int(keyword))
+        query = query.join(WithdrawRequest.user).filter(or_(*keyword_filters))
         
     withdrawals = query.order_by(WithdrawRequest.created_at.desc()).paginate(page=request.args.get('page', 1, type=int), per_page=20)
     
@@ -300,6 +315,7 @@ def withdraw_list():
         'finance/withdraw_list.html',
         withdrawals=withdrawals,
         current_status=status,
+        current_query=keyword,
         stats=stats,
     )
 
@@ -422,6 +438,7 @@ def commission_detail():
         change_type = ''
 
     query = CommissionLog.query.filter_by(user_id=current_user.id)
+    query = query.filter(~CommissionLog.change_type.in_(['staff_commission', 'staff_refund_deduct']))
     if change_type:
         query = query.filter_by(change_type=change_type)
 
