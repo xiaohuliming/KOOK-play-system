@@ -269,9 +269,9 @@
                 {% endif %}
               </span>
             </td>
-            <td class="py-3 text-slate-600 dark:text-slate-300">x{{ go.quantity }}</td>
-            <td class="py-3 font-bold text-slate-800 dark:text-white">¥{{ "%.2f"|format(go.total_price) }}</td>
-            <td class="py-3 text-green-600 dark:text-green-400 font-medium">¥{{ "%.2f"|format(go.player_earning) }}</td>
+            <td class="py-3 text-slate-600 dark:text-slate-300">x{{ go.quantity or 0 }}</td>
+            <td class="py-3 font-bold text-slate-800 dark:text-white">¥{{ "%.2f"|format(go.total_price or 0) }}</td>
+            <td class="py-3 text-green-600 dark:text-green-400 font-medium">¥{{ "%.2f"|format(go.player_earning or 0) }}</td>
             <td class="py-3 text-slate-500 dark:text-slate-400 text-xs">{{ go.staff.staff_display_name if go.staff else '-' }}</td>
             <td class="py-3 text-slate-500 dark:text-slate-400 text-xs">{{ fmt_dt(go.created_at, '%m-%d %H:%M') }}</td>
             <td class="py-3">
@@ -317,8 +317,8 @@
             <td class="py-3 text-slate-600 dark:text-slate-300">
               <span class="flex items-center gap-1"><i data-lucide="gamepad-2" width="14" height="14"></i> {{ order.project_display }}</span>
             </td>
-            <td class="py-3 font-bold text-slate-800 dark:text-white">¥ {{ "%.2f"|format(order.total_price) }}</td>
-            <td class="py-3 text-green-600 dark:text-green-400 font-medium">{{ "%.2f"|format(order.player_earning) }}</td>
+            <td class="py-3 font-bold text-slate-800 dark:text-white">¥ {{ "%.2f"|format(order.total_price or 0) }}</td>
+            <td class="py-3 text-green-600 dark:text-green-400 font-medium">{{ "%.2f"|format(order.player_earning or 0) }}</td>
             <td class="py-3">
               {% set color = order.status_color %}
               <span class="px-2 py-1 bg-{{ color }}-100 text-{{ color }}-800 dark:bg-{{ color }}-900/30 dark:text-{{ color }}-300 text-xs rounded-full font-medium">{{ order.status_label }}</span>
