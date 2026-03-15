@@ -276,7 +276,7 @@
           </tr>
         </thead>
         <tbody>
-          {% if balance_logs %}
+          {% if balance_logs and balance_logs.items %}
           {% for log in balance_logs.items %}
           <tr class="border-b border-white/20 dark:border-slate-700/50 text-sm">
             <td class="py-3">
@@ -304,14 +304,16 @@
     <div class="mt-4 flex justify-center">
       <div class="flex flex-wrap items-center justify-center gap-2">
         {% if balance_logs.has_prev %}
-        <a href="{{ url_for('users.detail', user_id=user.id, tab='balance', page=balance_logs.prev_num) }}" class="px-3 py-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-300 dark:border-slate-600 text-sm">上一页</a>
+        <a href="{{ url_for('users.detail', user_id=user.id, page=balance_logs.prev_num, **pagination_args) }}" class="px-3 py-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-300 dark:border-slate-600 text-sm">上一页</a>
         {% endif %}
-        <span class="px-3 py-1 text-slate-500 text-sm">{{ balance_logs.page }}/{{ balance_logs.pages }}</span>
+        <span class="px-3 py-1 text-slate-500 text-sm">第 {{ balance_logs.page }} / {{ balance_logs.pages }} 页</span>
         {% if balance_logs.has_next %}
-        <a href="{{ url_for('users.detail', user_id=user.id, tab='balance', page=balance_logs.next_num) }}" class="px-3 py-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-300 dark:border-slate-600 text-sm">下一页</a>
+        <a href="{{ url_for('users.detail', user_id=user.id, page=balance_logs.next_num, **pagination_args) }}" class="px-3 py-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-300 dark:border-slate-600 text-sm">下一页</a>
         {% endif %}
         <form method="get" action="{{ url_for('users.detail', user_id=user.id) }}" class="flex items-center gap-1 ml-2">
-          <input type="hidden" name="tab" value="balance">
+          {% for key, value in pagination_args.items() %}
+          <input type="hidden" name="{{ key }}" value="{{ value }}">
+          {% endfor %}
           <span class="text-xs text-slate-400">跳转到</span>
           <input type="number" name="page" min="1" max="{{ balance_logs.pages }}" value="{{ balance_logs.page }}" class="w-16 px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white">
           <span class="text-xs text-slate-400">页</span>
@@ -389,7 +391,7 @@
           </tr>
         </thead>
         <tbody>
-          {% if commission_logs %}
+          {% if commission_logs and commission_logs.items %}
           {% for log in commission_logs.items %}
           <tr class="border-b border-white/20 dark:border-slate-700/50 text-sm">
             <td class="py-3 font-bold {% if log.amount > 0 %}text-green-600{% else %}text-red-600{% endif %}">
@@ -406,6 +408,29 @@
         </tbody>
       </table>
     </div>
+
+    {% if commission_logs and commission_logs.pages > 1 %}
+    <div class="mt-4 flex justify-center">
+      <div class="flex flex-wrap items-center justify-center gap-2">
+        {% if commission_logs.has_prev %}
+        <a href="{{ url_for('users.detail', user_id=user.id, page=commission_logs.prev_num, **pagination_args) }}" class="px-3 py-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-300 dark:border-slate-600 text-sm">上一页</a>
+        {% endif %}
+        <span class="px-3 py-1 text-slate-500 text-sm">第 {{ commission_logs.page }} / {{ commission_logs.pages }} 页</span>
+        {% if commission_logs.has_next %}
+        <a href="{{ url_for('users.detail', user_id=user.id, page=commission_logs.next_num, **pagination_args) }}" class="px-3 py-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-300 dark:border-slate-600 text-sm">下一页</a>
+        {% endif %}
+        <form method="get" action="{{ url_for('users.detail', user_id=user.id) }}" class="flex items-center gap-1 ml-2">
+          {% for key, value in pagination_args.items() %}
+          <input type="hidden" name="{{ key }}" value="{{ value }}">
+          {% endfor %}
+          <span class="text-xs text-slate-400">跳转到</span>
+          <input type="number" name="page" min="1" max="{{ commission_logs.pages }}" value="{{ commission_logs.page }}" class="w-16 px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white">
+          <span class="text-xs text-slate-400">页</span>
+          <button type="submit" class="px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs">跳转</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
   </div>
 
   {# ===== 订单数据标签 ===== #}
@@ -433,7 +458,7 @@
           </tr>
         </thead>
         <tbody>
-          {% if orders %}
+          {% if orders and orders.items %}
           {% for order in orders.items %}
           <tr class="border-b border-white/20 dark:border-slate-700/50 text-sm">
             <td class="py-3 font-mono text-xs text-slate-600 dark:text-slate-300">{{ order.order_no }}</td>
@@ -456,6 +481,29 @@
         </tbody>
       </table>
     </div>
+
+    {% if orders and orders.pages > 1 %}
+    <div class="mt-4 flex justify-center">
+      <div class="flex flex-wrap items-center justify-center gap-2">
+        {% if orders.has_prev %}
+        <a href="{{ url_for('users.detail', user_id=user.id, page=orders.prev_num, **pagination_args) }}" class="px-3 py-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-300 dark:border-slate-600 text-sm">上一页</a>
+        {% endif %}
+        <span class="px-3 py-1 text-slate-500 text-sm">第 {{ orders.page }} / {{ orders.pages }} 页</span>
+        {% if orders.has_next %}
+        <a href="{{ url_for('users.detail', user_id=user.id, page=orders.next_num, **pagination_args) }}" class="px-3 py-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-300 dark:border-slate-600 text-sm">下一页</a>
+        {% endif %}
+        <form method="get" action="{{ url_for('users.detail', user_id=user.id) }}" class="flex items-center gap-1 ml-2">
+          {% for key, value in pagination_args.items() %}
+          <input type="hidden" name="{{ key }}" value="{{ value }}">
+          {% endfor %}
+          <span class="text-xs text-slate-400">跳转到</span>
+          <input type="number" name="page" min="1" max="{{ orders.pages }}" value="{{ orders.page }}" class="w-16 px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white">
+          <span class="text-xs text-slate-400">页</span>
+          <button type="submit" class="px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs">跳转</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
   </div>
 
   <div id="detail-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden items-center justify-center" onclick="if(event.target===this)closeDetail()">
@@ -487,8 +535,8 @@
           </tr>
         </thead>
         <tbody>
-          {% if intimacies %}
-          {% for item in intimacies %}
+          {% if intimacies and intimacies.items %}
+          {% for item in intimacies.items %}
           <tr class="border-b border-white/20 dark:border-slate-700/50 text-sm">
             <td class="py-3 font-medium text-slate-800 dark:text-white">
               {% if user.role == 'god' %}{{ item.player.player_nickname if item.player else '-' }}{% else %}{{ item.boss.nickname if item.boss else '-' }}{% endif %}
@@ -515,6 +563,29 @@
         </tbody>
       </table>
     </div>
+
+    {% if intimacies and intimacies.pages > 1 %}
+    <div class="mt-4 flex justify-center">
+      <div class="flex flex-wrap items-center justify-center gap-2">
+        {% if intimacies.has_prev %}
+        <a href="{{ url_for('users.detail', user_id=user.id, page=intimacies.prev_num, **pagination_args) }}" class="px-3 py-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-300 dark:border-slate-600 text-sm">上一页</a>
+        {% endif %}
+        <span class="px-3 py-1 text-slate-500 text-sm">第 {{ intimacies.page }} / {{ intimacies.pages }} 页</span>
+        {% if intimacies.has_next %}
+        <a href="{{ url_for('users.detail', user_id=user.id, page=intimacies.next_num, **pagination_args) }}" class="px-3 py-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-300 dark:border-slate-600 text-sm">下一页</a>
+        {% endif %}
+        <form method="get" action="{{ url_for('users.detail', user_id=user.id) }}" class="flex items-center gap-1 ml-2">
+          {% for key, value in pagination_args.items() %}
+          <input type="hidden" name="{{ key }}" value="{{ value }}">
+          {% endfor %}
+          <span class="text-xs text-slate-400">跳转到</span>
+          <input type="number" name="page" min="1" max="{{ intimacies.pages }}" value="{{ intimacies.page }}" class="w-16 px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white">
+          <span class="text-xs text-slate-400">页</span>
+          <button type="submit" class="px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs">跳转</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
   </div>
 
   {# ===== 合并数据标签 ===== #}
@@ -535,8 +606,8 @@
           </tr>
         </thead>
         <tbody>
-          {% if summary_items %}
-          {% for item in summary_items %}
+          {% if summary_items and summary_items.items %}
+          {% for item in summary_items.items %}
           <tr class="border-b border-white/20 dark:border-slate-700/50">
             <td class="py-2 text-slate-800 dark:text-white">
               <div class="flex items-center gap-2">
@@ -555,6 +626,29 @@
         </tbody>
       </table>
     </div>
+
+    {% if summary_items and summary_items.pages > 1 %}
+    <div class="mt-4 flex justify-center">
+      <div class="flex flex-wrap items-center justify-center gap-2">
+        {% if summary_items.has_prev %}
+        <a href="{{ url_for('users.detail', user_id=user.id, page=summary_items.prev_num, **pagination_args) }}" class="px-3 py-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-300 dark:border-slate-600 text-sm">上一页</a>
+        {% endif %}
+        <span class="px-3 py-1 text-slate-500 text-sm">第 {{ summary_items.page }} / {{ summary_items.pages }} 页</span>
+        {% if summary_items.has_next %}
+        <a href="{{ url_for('users.detail', user_id=user.id, page=summary_items.next_num, **pagination_args) }}" class="px-3 py-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-300 dark:border-slate-600 text-sm">下一页</a>
+        {% endif %}
+        <form method="get" action="{{ url_for('users.detail', user_id=user.id) }}" class="flex items-center gap-1 ml-2">
+          {% for key, value in pagination_args.items() %}
+          <input type="hidden" name="{{ key }}" value="{{ value }}">
+          {% endfor %}
+          <span class="text-xs text-slate-400">跳转到</span>
+          <input type="number" name="page" min="1" max="{{ summary_items.pages }}" value="{{ summary_items.page }}" class="w-16 px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white">
+          <span class="text-xs text-slate-400">页</span>
+          <button type="submit" class="px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs">跳转</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
   </div>
 
 {% endif %}

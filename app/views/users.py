@@ -3,6 +3,7 @@ from flask_login import login_required, current_user
 from sqlalchemy import or_, func
 from datetime import datetime, date
 from decimal import Decimal
+from types import SimpleNamespace
 
 from app.models.user import User
 from app.models.order import Order
@@ -17,6 +18,28 @@ from app.utils.permissions import staff_required, admin_required
 users_bp = Blueprint('users', __name__)
 
 _BIRTHDAY_STORE_YEAR = 2000
+
+
+def _paginate_list(items, page=1, per_page=15):
+    """对 Python 列表进行分页，返回与 SQLAlchemy Pagination 兼容的简化对象。"""
+    total = len(items or [])
+    pages = max(1, (total + per_page - 1) // per_page) if per_page > 0 else 1
+    page = max(1, min(int(page or 1), pages))
+
+    start = (page - 1) * per_page
+    end = start + per_page
+    page_items = (items or [])[start:end]
+
+    return SimpleNamespace(
+        items=page_items,
+        page=page,
+        pages=pages,
+        total=total,
+        has_prev=(page > 1),
+        has_next=(page < pages),
+        prev_num=(page - 1 if page > 1 else 1),
+        next_num=(page + 1 if page < pages else pages),
+    )
 
 
 def _format_birthday_month_day(value):
@@ -181,6 +204,10 @@ def detail(user_id):
         'date_from': date_from,
         'date_to': date_to,
     }
+    pagination_args = request.args.to_dict(flat=True)
+    pagination_args.pop('page', None)
+    pagination_args.pop('open_adjust', None)
+    context['pagination_args'] = pagination_args
 
     if tab == 'balance':
         # 嗯呢币日志
@@ -192,7 +219,9 @@ def detail(user_id):
             q = q.filter(BalanceLog.created_at >= date_from)
         if date_to:
             q = q.filter(BalanceLog.created_at <= date_to + ' 23:59:59')
-        context['balance_logs'] = q.order_by(BalanceLog.created_at.desc()).paginate(page=page, per_page=15)
+        context['balance_logs'] = q.order_by(BalanceLog.created_at.desc()).paginate(
+            page=page, per_page=15, error_out=False
+        )
 
     elif tab == 'commission':
         # 小猪粮日志
@@ -204,7 +233,9 @@ def detail(user_id):
             q = q.filter(CommissionLog.created_at >= date_from)
         if date_to:
             q = q.filter(CommissionLog.created_at <= date_to + ' 23:59:59')
-        context['commission_logs'] = q.order_by(CommissionLog.created_at.desc()).paginate(page=page, per_page=15)
+        context['commission_logs'] = q.order_by(CommissionLog.created_at.desc()).paginate(
+            page=page, per_page=15, error_out=False
+        )
 
     elif tab == 'orders':
         # 订单数据
@@ -213,15 +244,17 @@ def detail(user_id):
             q = q.filter(Order.created_at >= date_from)
         if date_to:
             q = q.filter(Order.created_at <= date_to + ' 23:59:59')
-        context['orders'] = q.order_by(Order.created_at.desc()).paginate(page=page, per_page=15)
+        context['orders'] = q.order_by(Order.created_at.desc()).paginate(
+            page=page, per_page=15, error_out=False
+        )
 
     elif tab == 'intimacy':
         # 亲密度数据
         if user.role == 'god':
-            intimacies = Intimacy.query.filter_by(boss_id=user_id).order_by(Intimacy.value.desc()).all()
+            q = Intimacy.query.filter_by(boss_id=user_id).order_by(Intimacy.value.desc())
         else:
-            intimacies = Intimacy.query.filter_by(player_id=user_id).order_by(Intimacy.value.desc()).all()
-        context['intimacies'] = intimacies
+            q = Intimacy.query.filter_by(player_id=user_id).order_by(Intimacy.value.desc())
+        context['intimacies'] = q.paginate(page=page, per_page=15, error_out=False)
 
     elif tab == 'summary':
         # 合并数据（用户作为老板视角）：下单给谁 + 送礼给谁（自动排除已退款）
@@ -283,7 +316,7 @@ def detail(user_id):
             summary_items.append(item)
 
         summary_items.sort(key=lambda x: x['total_amount'], reverse=True)
-        context['summary_items'] = summary_items
+        context['summary_items'] = _paginate_list(summary_items, page=page, per_page=15)
 
     return render_template('users/detail.html', **context)
 

@@ -382,7 +382,7 @@
                 <!-- 陪玩 {{ loop.index }} -->
                 <div class="flex items-center gap-4 p-3 rounded-2xl hover:bg-white/40 dark:hover:bg-slate-700/30 transition-colors border border-transparent hover:border-white/60 dark:hover:border-slate-600/50">
                   <div class="relative">
-                    <img src="{{ 'https://api.dicebear.com/7.x/notionists/svg?seed=anonymous&backgroundColor=e8eaf6' if player_anonymous else player.avatar_url }}" alt="" class="w-12 h-12 rounded-2xl object-cover shadow-sm border border-white dark:border-slate-700" />
+                    <img src="{{ '/static/img/anonymous-avatar.svg' if player_anonymous else player.avatar_url }}" alt="" class="w-12 h-12 rounded-2xl object-cover shadow-sm border border-white dark:border-slate-700" />
                     <div class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-gradient-to-br from-yellow-300 to-yellow-500 border-2 border-white dark:border-slate-800 flex items-center justify-center text-white text-xs font-bold shadow-sm">{{ loop.index }}</div>
                   </div>
                   <div class="flex-1">

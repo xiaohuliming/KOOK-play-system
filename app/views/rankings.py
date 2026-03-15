@@ -14,7 +14,7 @@ from app.models.user import User
 rankings_bp = Blueprint('rankings', __name__, template_folder='../templates')
 
 
-ANON_AVATAR_URL = 'https://api.dicebear.com/7.x/notionists/svg?seed=anonymous&backgroundColor=e8eaf6'
+ANON_AVATAR_URL = '/static/img/anonymous-avatar.svg'
 
 
 def _is_user_anonymous_for_ranking(user):
