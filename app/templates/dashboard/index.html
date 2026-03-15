@@ -45,7 +45,7 @@
             </div>
 
             <!-- 充值总览 -->
-            <div class="glass-card p-6 hover:-translate-y-1 transition-transform duration-300 cursor-pointer group">
+            <a href="{{ url_for('finance.recharge_overview') }}" class="glass-card p-6 hover:-translate-y-1 transition-transform duration-300 cursor-pointer group block">
               <div class="flex justify-between items-start">
                 <div class="p-3 rounded-2xl bg-emerald-500/10 text-emerald-500 group-hover:scale-110 transition-transform duration-300">
                   <i data-lucide="wallet" width="24" height="24" stroke-width="2"></i>
@@ -56,7 +56,7 @@
                 <p class="text-3xl font-bold tracking-tight mt-1 text-slate-800 dark:text-white">¥{{ "%.2f"|format(mgmt_stats.recharge_total) }}</p>
                 <p class="mt-1 text-xs text-slate-400">手动充值 {{ mgmt_stats.recharge_count }} 笔</p>
               </div>
-            </div>
+            </a>
 
             <!-- 订单数量 -->
             <div class="glass-card p-6 hover:-translate-y-1 transition-transform duration-300 cursor-pointer group">

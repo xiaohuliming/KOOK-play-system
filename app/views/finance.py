@@ -3,7 +3,7 @@ from flask_login import login_required, current_user
 from app.models.finance import WithdrawRequest, CommissionLog, BalanceLog
 from app.models.user import User
 from app.extensions import db
-from app.utils.permissions import admin_required
+from app.utils.permissions import admin_required, staff_required
 from app.services.log_service import log_operation
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -317,6 +317,99 @@ def withdraw_list():
         current_status=status,
         current_query=keyword,
         stats=stats,
+    )
+
+
+@finance_bp.route('/recharges')
+@login_required
+@staff_required
+def recharge_overview():
+    """充值总览（手动充值嗯呢币账单）"""
+    page = request.args.get('page', 1, type=int)
+    keyword = request.args.get('q', '').strip()
+    date_from = request.args.get('date_from', '').strip()
+    date_to = request.args.get('date_to', '').strip()
+
+    query = BalanceLog.query.filter(
+        BalanceLog.change_type == 'recharge',
+        BalanceLog.amount > 0,
+        BalanceLog.operator_id.isnot(None),
+    )
+
+    start_dt = None
+    end_dt = None
+    if date_from:
+        try:
+            start_dt = datetime.strptime(date_from, '%Y-%m-%d')
+            query = query.filter(BalanceLog.created_at >= start_dt)
+        except ValueError:
+            date_from = ''
+    if date_to:
+        try:
+            end_dt = datetime.strptime(date_to, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
+            query = query.filter(BalanceLog.created_at <= end_dt)
+        except ValueError:
+            date_to = ''
+
+    if keyword:
+        user_match_q = db.session.query(User.id).filter(or_(
+            User.player_nickname.ilike(f'%{keyword}%'),
+            User.kook_username.ilike(f'%{keyword}%'),
+            User.nickname.ilike(f'%{keyword}%'),
+            User.username.ilike(f'%{keyword}%'),
+            User.kook_id.ilike(f'%{keyword}%'),
+            User.user_code.ilike(f'%{keyword}%'),
+        ))
+        keyword_filters = [
+            BalanceLog.user_id.in_(user_match_q),
+            BalanceLog.operator_id.in_(user_match_q),
+            BalanceLog.reason.ilike(f'%{keyword}%'),
+        ]
+        if keyword.isdigit():
+            keyword_filters.append(BalanceLog.id == int(keyword))
+        query = query.filter(or_(*keyword_filters))
+
+    filtered_total = query.with_entities(func.coalesce(func.sum(BalanceLog.amount), 0)).scalar() or Decimal('0.00')
+    filtered_count = query.with_entities(func.count(BalanceLog.id)).scalar() or 0
+
+    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_query = BalanceLog.query.filter(
+        BalanceLog.change_type == 'recharge',
+        BalanceLog.amount > 0,
+        BalanceLog.operator_id.isnot(None),
+        BalanceLog.created_at >= today_start,
+    )
+    today_total = today_query.with_entities(func.coalesce(func.sum(BalanceLog.amount), 0)).scalar() or Decimal('0.00')
+    today_count = today_query.with_entities(func.count(BalanceLog.id)).scalar() or 0
+
+    logs = query.order_by(BalanceLog.created_at.desc()).paginate(page=page, per_page=20, error_out=False)
+
+    user_ids = set()
+    for log in logs.items:
+        if log.user_id:
+            user_ids.add(log.user_id)
+        if log.operator_id:
+            user_ids.add(log.operator_id)
+    users = User.query.filter(User.id.in_(list(user_ids))).all() if user_ids else []
+    user_map = {u.id: u for u in users}
+
+    pagination_args = request.args.to_dict(flat=True)
+    pagination_args.pop('page', None)
+
+    return render_template(
+        'finance/recharge_overview.html',
+        logs=logs,
+        user_map=user_map,
+        keyword=keyword,
+        date_from=date_from,
+        date_to=date_to,
+        stats={
+            'filtered_total': filtered_total,
+            'filtered_count': filtered_count,
+            'today_total': today_total,
+            'today_count': today_count,
+        },
+        pagination_args=pagination_args,
     )
 
 @finance_bp.route('/withdraw/<int:request_id>/audit', methods=['POST'])

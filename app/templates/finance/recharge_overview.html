@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block header_title %}充值总览{% endblock %}
+
+{% block content %}
+<div class="space-y-6 mt-4">
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="glass-card p-4">
+      <p class="text-sm text-slate-500 dark:text-slate-400">筛选充值总额</p>
+      <p class="mt-2 text-2xl font-bold text-slate-900 dark:text-white">¥{{ "%.2f"|format(stats.filtered_total) }}</p>
+      <p class="mt-1 text-xs text-slate-400">当前筛选结果</p>
+    </div>
+    <div class="glass-card p-4">
+      <p class="text-sm text-slate-500 dark:text-slate-400">筛选充值笔数</p>
+      <p class="mt-2 text-2xl font-bold text-slate-900 dark:text-white">{{ stats.filtered_count }}</p>
+      <p class="mt-1 text-xs text-slate-400">当前筛选结果</p>
+    </div>
+    <div class="glass-card p-4">
+      <p class="text-sm text-slate-500 dark:text-slate-400">今日充值</p>
+      <p class="mt-2 text-2xl font-bold text-emerald-600 dark:text-emerald-300">¥{{ "%.2f"|format(stats.today_total) }}</p>
+      <p class="mt-1 text-xs text-slate-400">今日 {{ stats.today_count }} 笔</p>
+    </div>
+  </div>
+
+  <div class="glass-card p-4">
+    <form method="get" class="grid grid-cols-1 md:grid-cols-4 gap-3">
+      <div class="md:col-span-2">
+        <label class="block text-xs text-slate-500 mb-1">搜索</label>
+        <input type="text" name="q" value="{{ keyword }}" placeholder="用户/客服/KOOK/流水ID/备注" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-white">
+      </div>
+      <div>
+        <label class="block text-xs text-slate-500 mb-1">开始日期</label>
+        <input type="date" name="date_from" value="{{ date_from }}" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-white">
+      </div>
+      <div>
+        <label class="block text-xs text-slate-500 mb-1">结束日期</label>
+        <input type="date" name="date_to" value="{{ date_to }}" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-white">
+      </div>
+      <div class="md:col-span-4 flex items-center gap-2">
+        <button type="submit" class="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium">筛选</button>
+        {% if keyword or date_from or date_to %}
+        <a href="{{ url_for('finance.recharge_overview') }}" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300">清除</a>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+
+  <div class="glass-card overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-sm min-w-[960px]">
+        <thead class="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-700/50">
+          <tr>
+            <th class="px-6 py-4 font-medium text-slate-500 dark:text-slate-400">流水ID</th>
+            <th class="px-6 py-4 font-medium text-slate-500 dark:text-slate-400">充值用户</th>
+            <th class="px-6 py-4 font-medium text-slate-500 dark:text-slate-400">金额</th>
+            <th class="px-6 py-4 font-medium text-slate-500 dark:text-slate-400">操作客服</th>
+            <th class="px-6 py-4 font-medium text-slate-500 dark:text-slate-400">备注</th>
+            <th class="px-6 py-4 font-medium text-slate-500 dark:text-slate-400">时间</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100 dark:divide-slate-800/50">
+          {% if logs.items %}
+          {% for log in logs.items %}
+          {% set target = user_map.get(log.user_id) %}
+          {% set operator = user_map.get(log.operator_id) %}
+          {% set target_name = (target.player_nickname or target.kook_username or target.nickname or target.username) if target else '用户已删除' %}
+          <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+            <td class="px-6 py-4 text-slate-500 font-mono">#{{ log.id }}</td>
+            <td class="px-6 py-4">
+              {% if target %}
+              <a href="{{ url_for('users.detail', user_id=target.id) }}" class="flex items-center gap-3 group">
+                <img src="{{ target.avatar_url }}" alt="" class="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700">
+                <div>
+                  <div class="font-medium text-slate-800 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-300">{{ target_name }}</div>
+                  <div class="text-xs text-slate-400">{{ target.user_code }}</div>
+                </div>
+              </a>
+              {% else %}
+              <span class="text-slate-400">用户已删除</span>
+              {% endif %}
+            </td>
+            <td class="px-6 py-4">
+              <span class="font-bold text-emerald-600 dark:text-emerald-300">+¥{{ "%.2f"|format(log.amount) }}</span>
+            </td>
+            <td class="px-6 py-4 text-slate-700 dark:text-slate-300">
+              {{ operator.staff_display_name if operator else '未知' }}
+            </td>
+            <td class="px-6 py-4 text-slate-500 dark:text-slate-400 max-w-[320px] truncate">{{ log.reason or '-' }}</td>
+            <td class="px-6 py-4 text-slate-500 dark:text-slate-400">{{ fmt_dt(log.created_at, '%Y-%m-%d %H:%M:%S') }}</td>
+          </tr>
+          {% endfor %}
+          {% else %}
+          <tr>
+            <td colspan="6" class="py-10 text-center text-slate-400">暂无充值记录</td>
+          </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if logs.pages > 1 %}
+    <div class="p-4 border-t border-slate-100 dark:border-slate-800/50 flex justify-center">
+      <div class="flex flex-wrap items-center justify-center gap-2">
+        {% if logs.has_prev %}
+        <a href="{{ url_for('finance.recharge_overview', page=logs.prev_num, **pagination_args) }}" class="px-3 py-1 rounded-lg border border-slate-300 dark:border-slate-600 text-sm">上一页</a>
+        {% endif %}
+        <span class="px-2 text-sm text-slate-500">{{ logs.page }} / {{ logs.pages }}</span>
+        {% if logs.has_next %}
+        <a href="{{ url_for('finance.recharge_overview', page=logs.next_num, **pagination_args) }}" class="px-3 py-1 rounded-lg border border-slate-300 dark:border-slate-600 text-sm">下一页</a>
+        {% endif %}
+        <form method="get" class="flex items-center gap-1 ml-2">
+          {% for key, value in pagination_args.items() %}
+          <input type="hidden" name="{{ key }}" value="{{ value }}">
+          {% endfor %}
+          <span class="text-xs text-slate-400">跳转到</span>
+          <input type="number" name="page" min="1" max="{{ logs.pages }}" value="{{ logs.page }}" class="w-16 px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white">
+          <span class="text-xs text-slate-400">页</span>
+          <button type="submit" class="px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs">跳转</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
