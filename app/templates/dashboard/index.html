@@ -30,7 +30,7 @@
             </div>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
             <!-- 交易额 -->
             <div class="glass-card p-6 hover:-translate-y-1 transition-transform duration-300 cursor-pointer group">
               <div class="flex justify-between items-start">
@@ -41,6 +41,20 @@
               <div class="mt-4">
                 <h3 class="text-slate-500 dark:text-slate-400 text-sm font-medium">交易额</h3>
                 <p class="text-3xl font-bold tracking-tight mt-1 text-slate-800 dark:text-white">¥{{ "%.2f"|format(mgmt_stats.revenue) }}</p>
+              </div>
+            </div>
+
+            <!-- 充值总览 -->
+            <div class="glass-card p-6 hover:-translate-y-1 transition-transform duration-300 cursor-pointer group">
+              <div class="flex justify-between items-start">
+                <div class="p-3 rounded-2xl bg-emerald-500/10 text-emerald-500 group-hover:scale-110 transition-transform duration-300">
+                  <i data-lucide="wallet" width="24" height="24" stroke-width="2"></i>
+                </div>
+              </div>
+              <div class="mt-4">
+                <h3 class="text-slate-500 dark:text-slate-400 text-sm font-medium">充值总览</h3>
+                <p class="text-3xl font-bold tracking-tight mt-1 text-slate-800 dark:text-white">¥{{ "%.2f"|format(mgmt_stats.recharge_total) }}</p>
+                <p class="mt-1 text-xs text-slate-400">手动充值 {{ mgmt_stats.recharge_count }} 笔</p>
               </div>
             </div>
 

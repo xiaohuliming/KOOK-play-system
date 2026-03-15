@@ -6,7 +6,7 @@ from decimal import Decimal
 from app.models.user import User
 from app.models.order import Order
 from app.models.gift import GiftOrder
-from app.models.finance import WithdrawRequest, CommissionLog
+from app.models.finance import WithdrawRequest, CommissionLog, BalanceLog
 from app.extensions import db
 
 dashboard_bp = Blueprint('dashboard', __name__)
@@ -204,9 +204,20 @@ def index():
 
         total_customers = User.query.filter(User.role == 'god').count()
         total_orders = Order.query.count() + GiftOrder.query.count()
+        recharge_total, recharge_count = db.session.query(
+            func.coalesce(func.sum(BalanceLog.amount), 0),
+            func.count(BalanceLog.id),
+        ).filter(
+            BalanceLog.change_type == 'recharge',
+            BalanceLog.amount > 0,
+            BalanceLog.operator_id.isnot(None),
+            BalanceLog.created_at >= start_date,
+        ).first()
 
         mgmt_stats = {
             'revenue': period_revenue,
+            'recharge_total': recharge_total or Decimal('0.00'),
+            'recharge_count': recharge_count or 0,
             'order_count': period_order_count,
             'customer_count': total_customers,
             'total_orders': total_orders,
