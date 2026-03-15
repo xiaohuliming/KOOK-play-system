@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify
 from flask_login import login_required, current_user
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, case
 from decimal import Decimal
 
 from app.models.gift import Gift, GiftOrder
@@ -89,7 +89,8 @@ def index():
         'platform_revenue': platform_revenue,
     }
 
-    gift_orders = query.order_by(GiftOrder.created_at.desc()).paginate(page=page, per_page=15)
+    gift_sort = case((GiftOrder.freeze_status == 'frozen', 0), else_=1)
+    gift_orders = query.order_by(gift_sort.asc(), GiftOrder.created_at.desc()).paginate(page=page, per_page=15)
     pagination_args = request.args.to_dict(flat=True)
     pagination_args.pop('page', None)
 

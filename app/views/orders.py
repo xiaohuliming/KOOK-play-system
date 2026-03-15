@@ -1,9 +1,10 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify, current_app
 from flask_login import login_required, current_user
-from sqlalchemy import or_, func
+from sqlalchemy import or_, func, case
 from decimal import Decimal
 
 from app.models.order import Order
+from app.models.gift import Gift, GiftOrder
 from app.models.user import User
 from app.models.project import Project, ProjectItem
 from app.extensions import db
@@ -18,9 +19,22 @@ orders_bp = Blueprint('orders', __name__)
 @login_required
 def index():
     page = request.args.get('page', 1, type=int)
+    normal_page = request.args.get('normal_page', 1, type=int)
+    gift_page = request.args.get('gift_page', 1, type=int)
+    escort_page = request.args.get('escort_page', 1, type=int)
+    training_page = request.args.get('training_page', 1, type=int)
     status_filter = request.args.get('status')
 
+    orders = None
+    normal_orders = None
+    gift_orders = None
+    escort_orders = None
+    training_orders = None
+    staff_page_state = None
+    staff_pagination_args = None
+
     query = Order.query
+    gift_query = None
 
     # 按“身份标签”聚合可见订单：多身份账号可同时看到各身份对应订单
     tag_set = set(current_user.tag_list or [])
@@ -31,6 +45,7 @@ def index():
     if has_staff_identity:
         # 客服/管理可见全量订单
         view_mode = 'staff'
+        gift_query = GiftOrder.query
     else:
         own_filters = []
         if has_boss_identity:
@@ -60,6 +75,11 @@ def index():
     if q:
         query = query.filter(Order.order_no.ilike(f'%{q}%'))
 
+    gift_name = request.args.get('gift_name', '').strip()
+    if gift_query is not None and gift_name:
+        gift_ids = db.session.query(Gift.id).filter(Gift.name.ilike(f'%{gift_name}%')).subquery()
+        gift_query = gift_query.filter(GiftOrder.gift_id.in_(gift_ids))
+
     # 老板昵称
     boss_name = request.args.get('boss_name', '').strip()
     if boss_name:
@@ -67,6 +87,8 @@ def index():
             User.role_filter_expr('god'), User.nickname.ilike(f'%{boss_name}%')
         ).subquery()
         query = query.filter(Order.boss_id.in_(boss_ids))
+        if gift_query is not None:
+            gift_query = gift_query.filter(GiftOrder.boss_id.in_(boss_ids))
 
     # 陪玩昵称
     player_name = request.args.get('player_name', '').strip()
@@ -75,6 +97,18 @@ def index():
             User.role_filter_expr('player'), User.player_nickname.ilike(f'%{player_name}%')
         ).subquery()
         query = query.filter(Order.player_id.in_(player_ids))
+        if gift_query is not None:
+            gift_receiver_ids = db.session.query(User.id).filter(
+                or_(
+                    User.role_filter_expr('player'),
+                    User.role_filter_expr('god')
+                ),
+                or_(
+                    User.player_nickname.ilike(f'%{player_name}%'),
+                    User.nickname.ilike(f'%{player_name}%')
+                )
+            ).subquery()
+            gift_query = gift_query.filter(GiftOrder.player_id.in_(gift_receiver_ids))
 
     # 派单客服
     staff_name = request.args.get('staff_name', '').strip()
@@ -86,14 +120,20 @@ def index():
             )
         ).subquery()
         query = query.filter(Order.staff_id.in_(staff_ids))
+        if gift_query is not None:
+            gift_query = gift_query.filter(GiftOrder.staff_id.in_(staff_ids))
 
     # 日期范围
     date_from = request.args.get('date_from', '').strip()
     date_to = request.args.get('date_to', '').strip()
     if date_from:
         query = query.filter(Order.created_at >= date_from)
+        if gift_query is not None:
+            gift_query = gift_query.filter(GiftOrder.created_at >= date_from)
     if date_to:
         query = query.filter(Order.created_at <= date_to + ' 23:59:59')
+        if gift_query is not None:
+            gift_query = gift_query.filter(GiftOrder.created_at <= date_to + ' 23:59:59')
 
     # 统计 (客服/管理可见)
     stats = None
@@ -114,16 +154,59 @@ def index():
             'platform_revenue': platform_revenue,
         }
 
-    orders = query.order_by(Order.created_at.desc()).paginate(page=page, per_page=15)
+    order_sort = case((Order.freeze_status == 'frozen', 0), else_=1)
+    gift_sort = case((GiftOrder.freeze_status == 'frozen', 0), else_=1)
+
     pagination_args = request.args.to_dict(flat=True)
-    pagination_args.pop('page', None)
+
+    if has_staff_identity:
+        normal_orders = (
+            query.filter(Order.order_type == 'normal')
+            .order_by(order_sort.asc(), Order.created_at.desc())
+            .paginate(page=normal_page, per_page=12, error_out=False)
+        )
+        escort_orders = (
+            query.filter(Order.order_type == 'escort')
+            .order_by(order_sort.asc(), Order.created_at.desc())
+            .paginate(page=escort_page, per_page=12, error_out=False)
+        )
+        training_orders = (
+            query.filter(Order.order_type == 'training')
+            .order_by(order_sort.asc(), Order.created_at.desc())
+            .paginate(page=training_page, per_page=12, error_out=False)
+        )
+        gift_orders = (
+            gift_query.order_by(gift_sort.asc(), GiftOrder.created_at.desc())
+            .paginate(page=gift_page, per_page=12, error_out=False)
+        )
+        staff_page_state = {
+            'normal_page': normal_orders.page,
+            'gift_page': gift_orders.page,
+            'escort_page': escort_orders.page,
+            'training_page': training_orders.page,
+        }
+        for key in ('page', 'normal_page', 'gift_page', 'escort_page', 'training_page'):
+            pagination_args.pop(key, None)
+        staff_pagination_args = pagination_args
+    else:
+        orders = (
+            query.order_by(order_sort.asc(), Order.created_at.desc())
+            .paginate(page=page, per_page=15, error_out=False)
+        )
+        pagination_args.pop('page', None)
 
     return render_template(
         'orders/index.html',
         orders=orders,
+        normal_orders=normal_orders,
+        gift_orders=gift_orders,
+        escort_orders=escort_orders,
+        training_orders=training_orders,
         stats=stats,
         view_mode=view_mode,
         pagination_args=pagination_args,
+        staff_page_state=staff_page_state,
+        staff_pagination_args=staff_pagination_args,
     )
 
 
