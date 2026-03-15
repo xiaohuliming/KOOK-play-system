@@ -78,10 +78,10 @@
             </td>
             <td class="py-3">
               <div class="flex items-center gap-3">
-                <img src="{{ item.user.avatar_url }}" class="w-8 h-8 rounded-full" alt="">
+                <img src="{{ item.display_avatar }}" class="w-8 h-8 rounded-full" alt="">
                 <div>
-                  <p class="font-medium text-slate-800 dark:text-white">{{ item.user.player_nickname or item.user.nickname or item.user.username }}</p>
-                  <p class="text-xs text-slate-400">{{ item.user.user_code }}</p>
+                  <p class="font-medium text-slate-800 dark:text-white">{{ item.display_name }}</p>
+                  <p class="text-xs text-slate-400">{{ item.display_code }}</p>
                 </div>
               </div>
             </td>
@@ -135,10 +135,10 @@
             </td>
             <td class="py-3">
               <div class="flex items-center gap-3">
-                <img src="{{ item.user.avatar_url }}" class="w-8 h-8 rounded-full" alt="">
+                <img src="{{ item.display_avatar }}" class="w-8 h-8 rounded-full" alt="">
                 <div>
-                  <p class="font-medium text-slate-800 dark:text-white">{{ item.user.nickname or item.user.username }}</p>
-                  <p class="text-xs text-slate-400">{{ item.user.user_code }}</p>
+                  <p class="font-medium text-slate-800 dark:text-white">{{ item.display_name }}</p>
+                  <p class="text-xs text-slate-400">{{ item.display_code }}</p>
                 </div>
               </div>
             </td>
@@ -193,14 +193,14 @@
             </td>
             <td class="py-3">
               <div class="flex items-center gap-2">
-                <img src="{{ item.boss.avatar_url }}" class="w-7 h-7 rounded-full" alt="">
-                <span class="font-medium text-slate-800 dark:text-white">{{ item.boss.nickname or item.boss.username }}</span>
+                <img src="{{ item.boss_display_avatar }}" class="w-7 h-7 rounded-full" alt="">
+                <span class="font-medium text-slate-800 dark:text-white">{{ item.boss_display_name }}</span>
               </div>
             </td>
             <td class="py-3">
               <div class="flex items-center gap-2">
-                <img src="{{ item.player.avatar_url }}" class="w-7 h-7 rounded-full" alt="">
-                <span class="font-medium text-slate-800 dark:text-white">{{ item.player.player_nickname or item.player.nickname or item.player.username }}</span>
+                <img src="{{ item.player_display_avatar }}" class="w-7 h-7 rounded-full" alt="">
+                <span class="font-medium text-slate-800 dark:text-white">{{ item.player_display_name }}</span>
               </div>
             </td>
             <td class="py-3 text-right">

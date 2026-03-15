@@ -14,6 +14,44 @@ from app.models.user import User
 rankings_bp = Blueprint('rankings', __name__, template_folder='../templates')
 
 
+ANON_AVATAR_URL = 'https://api.dicebear.com/7.x/notionists/svg?seed=anonymous&backgroundColor=e8eaf6'
+
+
+def _is_user_anonymous_for_ranking(user):
+    if not user:
+        return False
+    return any([
+        bool(getattr(user, 'anonymous_recharge', False)),
+        bool(getattr(user, 'anonymous_consume', False)),
+        bool(getattr(user, 'anonymous_gift_send', False)),
+        bool(getattr(user, 'anonymous_gift_recv', False)),
+        bool(getattr(user, 'anonymous_upgrade', False)),
+    ])
+
+
+def _build_ranking_profile(user, prefer_player_name=False, anonymous_label='匿名用户'):
+    anonymous = _is_user_anonymous_for_ranking(user)
+    if anonymous:
+        return {
+            'name': anonymous_label,
+            'avatar': ANON_AVATAR_URL,
+            'code': '******',
+            'anonymous': True,
+        }
+
+    if prefer_player_name:
+        name = user.player_nickname or user.nickname or user.username
+    else:
+        name = user.nickname or user.username
+
+    return {
+        'name': name,
+        'avatar': user.avatar_url,
+        'code': user.user_code,
+        'anonymous': False,
+    }
+
+
 def _parse_date_range(period):
     """根据时间筛选返回 (start_date, end_date)"""
     today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
@@ -105,11 +143,16 @@ def index():
 
         for user, oe, ge in results:
             total = Decimal(str(oe or 0)) + Decimal(str(ge or 0))
+            profile = _build_ranking_profile(user, prefer_player_name=True, anonymous_label='匿名陪玩')
             player_ranking.append({
                 'user': user,
                 'order_earning': Decimal(str(oe or 0)),
                 'gift_earning': Decimal(str(ge or 0)),
                 'total': total,
+                'display_name': profile['name'],
+                'display_avatar': profile['avatar'],
+                'display_code': profile['code'],
+                'is_anonymous': profile['anonymous'],
             })
         player_ranking.sort(key=lambda x: x['total'], reverse=True)
 
@@ -150,11 +193,16 @@ def index():
 
         for user, os_val, gs_val in results:
             total = Decimal(str(os_val or 0)) + Decimal(str(gs_val or 0))
+            profile = _build_ranking_profile(user, prefer_player_name=False, anonymous_label='匿名老板')
             boss_ranking.append({
                 'user': user,
                 'order_spend': Decimal(str(os_val or 0)),
                 'gift_spend': Decimal(str(gs_val or 0)),
                 'total': total,
+                'display_name': profile['name'],
+                'display_avatar': profile['avatar'],
+                'display_code': profile['code'],
+                'is_anonymous': profile['anonymous'],
             })
         boss_ranking.sort(key=lambda x: x['total'], reverse=True)
 
@@ -193,14 +241,21 @@ def index():
             desc(gift_intimacy.c.value)
         ).limit(100).all()
 
-        intimacy_ranking = [
-            {
+        intimacy_ranking = []
+        for boss, player, value in rows:
+            boss_profile = _build_ranking_profile(boss, prefer_player_name=False, anonymous_label='匿名老板')
+            player_profile = _build_ranking_profile(player, prefer_player_name=True, anonymous_label='匿名陪玩')
+            intimacy_ranking.append({
                 'boss': boss,
                 'player': player,
                 'value': Decimal(str(value or 0)),
-            }
-            for boss, player, value in rows
-        ]
+                'boss_display_name': boss_profile['name'],
+                'boss_display_avatar': boss_profile['avatar'],
+                'boss_is_anonymous': boss_profile['anonymous'],
+                'player_display_name': player_profile['name'],
+                'player_display_avatar': player_profile['avatar'],
+                'player_is_anonymous': player_profile['anonymous'],
+            })
 
     return render_template('rankings/index.html',
                            tab=tab,
