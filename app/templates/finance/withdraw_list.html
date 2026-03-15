@@ -5,6 +5,13 @@
 {% block content %}
 {% set return_page_url = url_for('finance.withdraw_list', page=withdrawals.page, status=current_status, q=current_query or none) %}
 <div class="space-y-6 mt-4">
+  <div class="glass-card p-2 flex items-center gap-2">
+    <a href="{{ url_for('finance.withdraw_list') }}" class="px-4 py-2 rounded-lg text-sm font-medium transition-colors {% if request.endpoint == 'finance.withdraw_list' %}bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-300{% else %}text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800{% endif %}">提现审批</a>
+    {% if current_user.is_admin %}
+    <a href="{{ url_for('finance.recharge_overview') }}" class="px-4 py-2 rounded-lg text-sm font-medium transition-colors {% if request.endpoint == 'finance.recharge_overview' %}bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-300{% else %}text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800{% endif %}">充值总览</a>
+    {% endif %}
+  </div>
+
   <!-- 顶部统计 -->
   <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
     <div class="glass-card p-4">

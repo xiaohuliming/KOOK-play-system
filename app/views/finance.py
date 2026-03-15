@@ -3,11 +3,14 @@ from flask_login import login_required, current_user
 from app.models.finance import WithdrawRequest, CommissionLog, BalanceLog
 from app.models.user import User
 from app.extensions import db
-from app.utils.permissions import admin_required, staff_required
+from app.utils.permissions import admin_required
+from app.utils.time_utils import BJ_TZ
 from app.services.log_service import log_operation
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from sqlalchemy import func, or_
+from collections import defaultdict, deque
+import re
 import os
 import uuid
 from werkzeug.utils import secure_filename
@@ -30,6 +33,84 @@ def _append_query_param(url: str, key: str, value: str):
         return url
     joiner = '&' if '?' in url else '?'
     return f'{url}{joiner}{key}={value}'
+
+
+def _bj_day_utc_range(day_obj):
+    """将北京时间某天映射为 UTC 无时区时间区间 [start, end)。"""
+    start_bj = datetime(day_obj.year, day_obj.month, day_obj.day, tzinfo=BJ_TZ)
+    end_bj = start_bj + timedelta(days=1)
+    start_utc = start_bj.astimezone(timezone.utc).replace(tzinfo=None)
+    end_utc = end_bj.astimezone(timezone.utc).replace(tzinfo=None)
+    return start_utc, end_utc
+
+
+_RECHARGE_REF_RE = re.compile(r'\[recharge[_-]?ref:(\d+)\]', re.IGNORECASE)
+_RECHARGE_CN_REF_RE = re.compile(r'充值(?:流水|记录|单号|ID)?\s*#?\s*(\d+)', re.IGNORECASE)
+_REFUND_REASON_KEYWORDS = ('充值退款', '退款充值', '撤销充值', '回退充值', '回滚充值')
+
+
+def _q_money(value):
+    return Decimal(str(value or 0)).quantize(Decimal('0.01'))
+
+
+def _extract_recharge_ref_id(reason):
+    text = str(reason or '')
+    m = _RECHARGE_REF_RE.search(text)
+    if m:
+        return int(m.group(1))
+    m = _RECHARGE_CN_REF_RE.search(text)
+    if m:
+        return int(m.group(1))
+    return None
+
+
+def _is_recharge_refund_reason(reason):
+    text = str(reason or '')
+    if _extract_recharge_ref_id(text):
+        return True
+    return any(key in text for key in _REFUND_REASON_KEYWORDS)
+
+
+def _build_refunded_recharge_ids(all_recharge_rows, refund_rows):
+    """返回已退款充值流水 ID 集合（用于统计排除与列表划线显示）。"""
+    refunded_ids = set()
+    recharge_map = {row.id: row for row in all_recharge_rows}
+
+    buckets = defaultdict(deque)
+    for row in sorted(all_recharge_rows, key=lambda r: (r.created_at, r.id)):
+        key = (row.user_id, row.operator_id, _q_money(row.amount))
+        buckets[key].append((row.id, row.created_at))
+
+    for refund in sorted(refund_rows, key=lambda r: (r.created_at, r.id)):
+        refund_amount = _q_money(abs(refund.amount))
+        explicit_ref_id = _extract_recharge_ref_id(refund.reason)
+
+        if explicit_ref_id and explicit_ref_id in recharge_map and explicit_ref_id not in refunded_ids:
+            recharge_row = recharge_map[explicit_ref_id]
+            if _q_money(recharge_row.amount) == refund_amount and refund.created_at >= recharge_row.created_at:
+                refunded_ids.add(explicit_ref_id)
+                continue
+
+        if not _is_recharge_refund_reason(refund.reason):
+            continue
+
+        key = (refund.user_id, refund.operator_id, refund_amount)
+        queue = buckets.get(key)
+        if not queue:
+            continue
+
+        while queue:
+            recharge_id, recharge_time = queue[0]
+            if recharge_id in refunded_ids:
+                queue.popleft()
+                continue
+            if refund.created_at < recharge_time:
+                break
+            refunded_ids.add(recharge_id)
+            queue.popleft()
+            break
+
+    return refunded_ids
 
 
 def _redirect_after_withdraw_audit(row_id=None):
@@ -322,7 +403,7 @@ def withdraw_list():
 
 @finance_bp.route('/recharges')
 @login_required
-@staff_required
+@admin_required
 def recharge_overview():
     """充值总览（手动充值嗯呢币账单）"""
     page = request.args.get('page', 1, type=int)
@@ -336,18 +417,20 @@ def recharge_overview():
         BalanceLog.operator_id.isnot(None),
     )
 
-    start_dt = None
-    end_dt = None
+    from_date_obj = None
+    to_date_obj = None
     if date_from:
         try:
-            start_dt = datetime.strptime(date_from, '%Y-%m-%d')
-            query = query.filter(BalanceLog.created_at >= start_dt)
+            from_date_obj = datetime.strptime(date_from, '%Y-%m-%d').date()
+            start_utc, _ = _bj_day_utc_range(from_date_obj)
+            query = query.filter(BalanceLog.created_at >= start_utc)
         except ValueError:
             date_from = ''
     if date_to:
         try:
-            end_dt = datetime.strptime(date_to, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
-            query = query.filter(BalanceLog.created_at <= end_dt)
+            to_date_obj = datetime.strptime(date_to, '%Y-%m-%d').date()
+            _, end_utc = _bj_day_utc_range(to_date_obj)
+            query = query.filter(BalanceLog.created_at < end_utc)
         except ValueError:
             date_to = ''
 
@@ -369,18 +452,68 @@ def recharge_overview():
             keyword_filters.append(BalanceLog.id == int(keyword))
         query = query.filter(or_(*keyword_filters))
 
-    filtered_total = query.with_entities(func.coalesce(func.sum(BalanceLog.amount), 0)).scalar() or Decimal('0.00')
-    filtered_count = query.with_entities(func.count(BalanceLog.id)).scalar() or 0
+    filtered_rows = query.with_entities(
+        BalanceLog.id,
+        BalanceLog.user_id,
+        BalanceLog.operator_id,
+        BalanceLog.amount,
+        BalanceLog.created_at,
+    ).order_by(BalanceLog.created_at.asc(), BalanceLog.id.asc()).all()
 
-    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    today_query = BalanceLog.query.filter(
+    bj_today = datetime.now(BJ_TZ).date()
+    today_start, tomorrow_start = _bj_day_utc_range(bj_today)
+    today_rows = BalanceLog.query.filter(
         BalanceLog.change_type == 'recharge',
         BalanceLog.amount > 0,
         BalanceLog.operator_id.isnot(None),
         BalanceLog.created_at >= today_start,
-    )
-    today_total = today_query.with_entities(func.coalesce(func.sum(BalanceLog.amount), 0)).scalar() or Decimal('0.00')
-    today_count = today_query.with_entities(func.count(BalanceLog.id)).scalar() or 0
+        BalanceLog.created_at < tomorrow_start,
+    ).with_entities(
+        BalanceLog.id,
+        BalanceLog.user_id,
+        BalanceLog.operator_id,
+        BalanceLog.amount,
+        BalanceLog.created_at,
+    ).order_by(BalanceLog.created_at.asc(), BalanceLog.id.asc()).all()
+
+    related_user_ids = {row.user_id for row in filtered_rows}
+    related_user_ids.update(row.user_id for row in today_rows)
+
+    refunded_ids = set()
+    if related_user_ids:
+        all_recharge_rows = BalanceLog.query.filter(
+            BalanceLog.change_type == 'recharge',
+            BalanceLog.amount > 0,
+            BalanceLog.operator_id.isnot(None),
+            BalanceLog.user_id.in_(list(related_user_ids)),
+        ).with_entities(
+            BalanceLog.id,
+            BalanceLog.user_id,
+            BalanceLog.operator_id,
+            BalanceLog.amount,
+            BalanceLog.created_at,
+        ).all()
+
+        refund_rows = BalanceLog.query.filter(
+            BalanceLog.change_type == 'admin_adjust',
+            BalanceLog.amount < 0,
+            BalanceLog.operator_id.isnot(None),
+            BalanceLog.user_id.in_(list(related_user_ids)),
+        ).with_entities(
+            BalanceLog.id,
+            BalanceLog.user_id,
+            BalanceLog.operator_id,
+            BalanceLog.amount,
+            BalanceLog.created_at,
+            BalanceLog.reason,
+        ).all()
+
+        refunded_ids = _build_refunded_recharge_ids(all_recharge_rows, refund_rows)
+
+    filtered_total = sum((_q_money(r.amount) for r in filtered_rows if r.id not in refunded_ids), Decimal('0.00'))
+    filtered_count = sum((1 for r in filtered_rows if r.id not in refunded_ids))
+    today_total = sum((_q_money(r.amount) for r in today_rows if r.id not in refunded_ids), Decimal('0.00'))
+    today_count = sum((1 for r in today_rows if r.id not in refunded_ids))
 
     logs = query.order_by(BalanceLog.created_at.desc()).paginate(page=page, per_page=20, error_out=False)
 
@@ -409,6 +542,7 @@ def recharge_overview():
             'today_total': today_total,
             'today_count': today_count,
         },
+        refunded_map={log.id: (log.id in refunded_ids) for log in logs.items},
         pagination_args=pagination_args,
     )
 

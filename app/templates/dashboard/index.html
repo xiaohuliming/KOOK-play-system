@@ -30,7 +30,7 @@
             </div>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 {% if current_user.is_admin %}lg:grid-cols-5{% else %}lg:grid-cols-4{% endif %} gap-6">
             <!-- 交易额 -->
             <div class="glass-card p-6 hover:-translate-y-1 transition-transform duration-300 cursor-pointer group">
               <div class="flex justify-between items-start">
@@ -45,6 +45,7 @@
             </div>
 
             <!-- 充值总览 -->
+            {% if current_user.is_admin %}
             <a href="{{ url_for('finance.recharge_overview') }}" class="glass-card p-6 hover:-translate-y-1 transition-transform duration-300 cursor-pointer group block">
               <div class="flex justify-between items-start">
                 <div class="p-3 rounded-2xl bg-emerald-500/10 text-emerald-500 group-hover:scale-110 transition-transform duration-300">
@@ -57,6 +58,7 @@
                 <p class="mt-1 text-xs text-slate-400">手动充值 {{ mgmt_stats.recharge_count }} 笔</p>
               </div>
             </a>
+            {% endif %}
 
             <!-- 订单数量 -->
             <div class="glass-card p-6 hover:-translate-y-1 transition-transform duration-300 cursor-pointer group">
@@ -348,7 +350,10 @@
                       <th class="pb-4 font-medium">客服</th>
                       <th class="pb-4 font-medium">派发订单数</th>
                       <th class="pb-4 font-medium">派发礼物数</th>
-                      <th class="pb-4 font-medium">累计订单时长</th>
+                      <th class="pb-4 font-medium">派单订单时长</th>
+                      <th class="pb-4 font-medium">派单礼物总额</th>
+                      <th class="pb-4 font-medium">派发护航总额</th>
+                      <th class="pb-4 font-medium">代练总额</th>
                       <th class="pb-4 font-medium">提成</th>
                     </tr>
                   </thead>
@@ -364,6 +369,9 @@
                       <td class="py-4 text-sm font-bold text-slate-800 dark:text-slate-200">{{ item.order_count }}</td>
                       <td class="py-4 text-sm text-slate-800 dark:text-slate-200">{{ item.gift_count }}</td>
                       <td class="py-4 text-sm text-slate-600 dark:text-slate-300">{{ "%.1f"|format(item.total_duration) }} 小时</td>
+                      <td class="py-4 text-sm text-slate-800 dark:text-slate-200">¥ {{ "%.2f"|format(item.gift_total) }}</td>
+                      <td class="py-4 text-sm text-slate-800 dark:text-slate-200">¥ {{ "%.2f"|format(item.escort_total) }}</td>
+                      <td class="py-4 text-sm text-slate-800 dark:text-slate-200">¥ {{ "%.2f"|format(item.training_total) }}</td>
                       <td class="py-4 text-sm font-bold text-green-600 dark:text-green-400">¥ {{ "%.2f"|format(item.commission) }}</td>
                     </tr>
                     {% endfor %}

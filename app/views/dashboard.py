@@ -1,19 +1,31 @@
 from flask import Blueprint, render_template, request
 from flask_login import login_required, current_user
 from sqlalchemy import func
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from app.models.user import User
 from app.models.order import Order
 from app.models.gift import GiftOrder
 from app.models.finance import WithdrawRequest, CommissionLog, BalanceLog
 from app.extensions import db
+from app.utils.time_utils import BJ_TZ
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
 @dashboard_bp.route('/')
 @login_required
 def index():
+    def _bj_period_start_utc(period_key: str):
+        bj_now = datetime.now(BJ_TZ)
+        if period_key == 'week':
+            start_day = bj_now.date() - timedelta(days=bj_now.weekday())
+        elif period_key == 'month':
+            start_day = bj_now.date().replace(day=1)
+        else:
+            start_day = bj_now.date()
+        start_bj = datetime(start_day.year, start_day.month, start_day.day, tzinfo=BJ_TZ)
+        return start_bj.astimezone(timezone.utc).replace(tzinfo=None)
+
     def _calc_growth(current, previous):
         current_val = float(current or 0)
         prev_val = float(previous or 0)
@@ -185,12 +197,7 @@ def index():
     if current_user.is_staff:
         # --- 管理统计卡片 ---
         current_period = request.args.get('period', 'day')
-        if current_period == 'week':
-            start_date = today_start - timedelta(days=today_start.weekday())
-        elif current_period == 'month':
-            start_date = today_start.replace(day=1)
-        else:
-            start_date = today_start
+        start_date = _bj_period_start_utc(current_period)
 
         period_revenue = _sum_order_total(start_date) + _sum_gift_total(start_date)
 
@@ -254,10 +261,14 @@ def index():
             func.coalesce(func.sum(
                 db.case((Order.order_type == 'normal', 1), else_=0)
             ), 0).label('normal_count'),
-            # 护航/代练订单总额(1%)
+            # 护航订单总额(1%)
             func.coalesce(func.sum(
-                db.case((Order.order_type.in_(['escort', 'training']), Order.total_price), else_=0)
+                db.case((Order.order_type == 'escort', Order.total_price), else_=0)
             ), 0).label('escort_total'),
+            # 代练订单总额(1%)
+            func.coalesce(func.sum(
+                db.case((Order.order_type == 'training', Order.total_price), else_=0)
+            ), 0).label('training_total'),
         ).join(Order, User.id == Order.staff_id).filter(
             Order.created_at >= perf_start_date,
             Order.status.in_(['pending_pay', 'paid']),
@@ -276,15 +287,20 @@ def index():
         gift_map = {row.staff_id: {'gift_count': row.gift_count, 'gift_total': float(row.gift_total)} for row in gift_perf_raw}
 
         staff_perf = []
-        for staff_user, order_count, total_duration, normal_count, escort_total in staff_perf_raw:
+        for staff_user, order_count, total_duration, normal_count, escort_total, training_total in staff_perf_raw:
             gd = gift_map.pop(staff_user.id, {'gift_count': 0, 'gift_total': 0})
             # 提成: 常规1元/单 + 护航/代练1% + 礼物1%
-            commission = float(normal_count or 0) * 1.0 + float(escort_total or 0) * 0.01 + gd['gift_total'] * 0.01
+            escort_amount = float(escort_total or 0)
+            training_amount = float(training_total or 0)
+            commission = float(normal_count or 0) * 1.0 + (escort_amount + training_amount) * 0.01 + gd['gift_total'] * 0.01
             staff_perf.append({
                 'user': staff_user,
                 'order_count': order_count,
                 'total_duration': float(total_duration),
                 'gift_count': gd['gift_count'],
+                'gift_total': round(float(gd['gift_total']), 2),
+                'escort_total': round(escort_amount, 2),
+                'training_total': round(training_amount, 2),
                 'commission': round(commission, 2),
             })
 
@@ -298,6 +314,9 @@ def index():
                     'order_count': 0,
                     'total_duration': 0,
                     'gift_count': gd['gift_count'],
+                    'gift_total': round(float(gd['gift_total']), 2),
+                    'escort_total': 0.0,
+                    'training_total': 0.0,
                     'commission': round(commission, 2),
                 })
 
