@@ -19,19 +19,15 @@ orders_bp = Blueprint('orders', __name__)
 @login_required
 def index():
     page = request.args.get('page', 1, type=int)
-    normal_page = request.args.get('normal_page', 1, type=int)
-    gift_page = request.args.get('gift_page', 1, type=int)
-    escort_page = request.args.get('escort_page', 1, type=int)
-    training_page = request.args.get('training_page', 1, type=int)
     status_filter = request.args.get('status')
+    staff_section = (request.args.get('section') or 'normal').strip().lower()
+    if staff_section not in ('normal', 'gift', 'escort', 'training'):
+        staff_section = 'normal'
 
     orders = None
-    normal_orders = None
     gift_orders = None
-    escort_orders = None
-    training_orders = None
-    staff_page_state = None
     staff_pagination_args = None
+    staff_tab_args = None
 
     query = Order.query
     gift_query = None
@@ -157,56 +153,37 @@ def index():
     order_sort = case((Order.freeze_status == 'frozen', 0), else_=1)
     gift_sort = case((GiftOrder.freeze_status == 'frozen', 0), else_=1)
 
-    pagination_args = request.args.to_dict(flat=True)
-
     if has_staff_identity:
-        normal_orders = (
-            query.filter(Order.order_type == 'normal')
-            .order_by(order_sort.asc(), Order.created_at.desc())
-            .paginate(page=normal_page, per_page=12, error_out=False)
-        )
-        escort_orders = (
-            query.filter(Order.order_type == 'escort')
-            .order_by(order_sort.asc(), Order.created_at.desc())
-            .paginate(page=escort_page, per_page=12, error_out=False)
-        )
-        training_orders = (
-            query.filter(Order.order_type == 'training')
-            .order_by(order_sort.asc(), Order.created_at.desc())
-            .paginate(page=training_page, per_page=12, error_out=False)
-        )
-        gift_orders = (
-            gift_query.order_by(gift_sort.asc(), GiftOrder.created_at.desc())
-            .paginate(page=gift_page, per_page=12, error_out=False)
-        )
-        staff_page_state = {
-            'normal_page': normal_orders.page,
-            'gift_page': gift_orders.page,
-            'escort_page': escort_orders.page,
-            'training_page': training_orders.page,
-        }
-        for key in ('page', 'normal_page', 'gift_page', 'escort_page', 'training_page'):
-            pagination_args.pop(key, None)
-        staff_pagination_args = pagination_args
+        if staff_section == 'gift':
+            gift_orders = gift_query.order_by(gift_sort.asc(), GiftOrder.created_at.desc()).paginate(
+                page=page, per_page=15, error_out=False
+            )
+        else:
+            orders = query.filter(Order.order_type == staff_section).order_by(
+                order_sort.asc(), Order.created_at.desc()
+            ).paginate(page=page, per_page=15, error_out=False)
     else:
-        orders = (
-            query.order_by(order_sort.asc(), Order.created_at.desc())
-            .paginate(page=page, per_page=15, error_out=False)
+        orders = query.order_by(order_sort.asc(), Order.created_at.desc()).paginate(
+            page=page, per_page=15, error_out=False
         )
-        pagination_args.pop('page', None)
+
+    pagination_args = request.args.to_dict(flat=True)
+    pagination_args.pop('page', None)
+    if has_staff_identity:
+        staff_pagination_args = pagination_args.copy()
+        staff_tab_args = pagination_args.copy()
+        staff_tab_args.pop('section', None)
 
     return render_template(
         'orders/index.html',
         orders=orders,
-        normal_orders=normal_orders,
         gift_orders=gift_orders,
-        escort_orders=escort_orders,
-        training_orders=training_orders,
         stats=stats,
         view_mode=view_mode,
         pagination_args=pagination_args,
-        staff_page_state=staff_page_state,
+        staff_section=staff_section,
         staff_pagination_args=staff_pagination_args,
+        staff_tab_args=staff_tab_args,
     )
 
 

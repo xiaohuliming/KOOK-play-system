@@ -1,199 +1,66 @@
 {% extends "base.html" %}
 
-{% macro render_staff_pagination(page_param, pager, staff_page_state, staff_pagination_args) -%}
-  {% if pager and pager.pages > 1 %}
-  <div class="mt-4 flex items-center justify-between gap-2 text-xs text-slate-500">
-    {% if pager.has_prev %}
-    <a href="{{ url_for('orders.index',
-      normal_page=pager.prev_num if page_param == 'normal_page' else staff_page_state.normal_page,
-      gift_page=pager.prev_num if page_param == 'gift_page' else staff_page_state.gift_page,
-      escort_page=pager.prev_num if page_param == 'escort_page' else staff_page_state.escort_page,
-      training_page=pager.prev_num if page_param == 'training_page' else staff_page_state.training_page,
-      **staff_pagination_args) }}"
-      class="px-3 py-1 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-white/60 dark:hover:bg-slate-800/60">上一页</a>
-    {% else %}
-    <span></span>
-    {% endif %}
-    <span>{{ pager.page }} / {{ pager.pages }}</span>
-    {% if pager.has_next %}
-    <a href="{{ url_for('orders.index',
-      normal_page=pager.next_num if page_param == 'normal_page' else staff_page_state.normal_page,
-      gift_page=pager.next_num if page_param == 'gift_page' else staff_page_state.gift_page,
-      escort_page=pager.next_num if page_param == 'escort_page' else staff_page_state.escort_page,
-      training_page=pager.next_num if page_param == 'training_page' else staff_page_state.training_page,
-      **staff_pagination_args) }}"
-      class="px-3 py-1 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-white/60 dark:hover:bg-slate-800/60">下一页</a>
-    {% else %}
-    <span></span>
-    {% endif %}
-  </div>
-  {% endif %}
+{% macro render_staff_tab(label, section_key, current_section, staff_tab_args) -%}
+  {% set active = current_section == section_key %}
+  <a href="{{ url_for('orders.index', section=section_key, **staff_tab_args) }}"
+     class="px-4 py-2 rounded-xl text-sm font-medium transition-colors {% if active %}bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-900{% else %}bg-white/60 text-slate-500 border border-white/60 hover:bg-white/90 dark:bg-slate-800/60 dark:border-slate-700/60 dark:text-slate-300 dark:hover:bg-slate-800/90{% endif %}">
+    {{ label }}
+  </a>
 {%- endmacro %}
 
 {% macro render_order_actions(order) -%}
-  <div class="mt-3 flex flex-wrap gap-2">
-    <button onclick="showDetail({{ order.id }})" class="px-2.5 py-1 rounded-lg bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-300 text-xs font-medium">详情</button>
+  <div class="flex justify-end gap-1">
+    <button onclick="showDetail({{ order.id }})" class="text-purple-500 hover:text-purple-600 text-xs font-medium px-2 py-1 rounded hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors">详情</button>
     {% if order.status in ('pending_report', 'pending_confirm') %}
-    <a href="{{ url_for('orders.report', order_id=order.id) }}" class="px-2.5 py-1 rounded-lg bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-300 text-xs font-medium">代报单</a>
+    <a href="{{ url_for('orders.report', order_id=order.id) }}" class="text-orange-500 hover:text-orange-600 text-xs font-medium px-2 py-1 rounded hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors">代报单</a>
     {% endif %}
     {% if order.status == 'pending_confirm' %}
     <form action="{{ url_for('orders.confirm', order_id=order.id) }}" method="post" class="inline">
-      <button type="submit" class="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-300 text-xs font-medium" onclick="return confirm('确认代老板支付并结单？')">代确认</button>
+      <button type="submit" class="text-emerald-600 hover:text-emerald-700 text-xs font-medium px-2 py-1 rounded hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors" onclick="return confirm('确认代老板支付并结单？')">代确认支付</button>
     </form>
     {% endif %}
     {% set can_manage_freeze = order.order_type in ('escort', 'training') or order.is_frozen %}
     {% if can_freeze_order(current_user) and can_manage_freeze %}
       {% if not order.is_frozen and order.order_type in ('escort', 'training') %}
       <form action="{{ url_for('orders.order_action', order_id=order.id, action='freeze') }}" method="post" class="inline">
-        <button type="submit" class="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-300 text-xs font-medium" onclick="return confirm('确认冻结?')">冻结</button>
+        <button type="submit" class="text-orange-500 hover:text-orange-600 text-xs font-medium px-2 py-1 rounded hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors" onclick="return confirm('确认冻结?')">冻结</button>
       </form>
       {% else %}
       <form action="{{ url_for('orders.order_action', order_id=order.id, action='unfreeze') }}" method="post" class="inline">
-        <button type="submit" class="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-600 dark:bg-sky-900/20 dark:text-sky-300 text-xs font-medium" onclick="return confirm('确认解冻?')">解冻</button>
+        <button type="submit" class="text-blue-500 hover:text-blue-600 text-xs font-medium px-2 py-1 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors" onclick="return confirm('确认解冻?')">解冻</button>
       </form>
       {% endif %}
     {% endif %}
     {% if can_refund_order(current_user) and order.status in ('pending_pay', 'paid') %}
     <form action="{{ url_for('orders.order_action', order_id=order.id, action='refund') }}" method="post" class="inline">
-      <button type="submit" class="px-2.5 py-1 rounded-lg bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-300 text-xs font-medium" onclick="return confirm('确认退款? 将退还老板嗯呢币并扣回陪玩小猪粮')">退款</button>
+      <button type="submit" class="text-red-500 hover:text-red-600 text-xs font-medium px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors" onclick="return confirm('确认退款? 将退还老板嗯呢币并扣回陪玩小猪粮')">退款</button>
     </form>
     {% endif %}
     {% if can_delete_order(current_user) and order.status in ('pending_report', 'pending_confirm') %}
     <form action="{{ url_for('orders.delete', order_id=order.id) }}" method="post" class="inline">
-      <button type="submit" class="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 dark:bg-rose-900/20 dark:text-rose-300 text-xs font-medium" onclick="return confirm('确认删除订单?\\n\\n仅删除未付款订单，不会产生资金变动。')">删除</button>
+      <button type="submit" class="text-rose-600 hover:text-rose-700 text-xs font-medium px-2 py-1 rounded hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors" onclick="return confirm('确认删除订单?\\n\\n仅删除未付款订单，不会产生资金变动。')">删除</button>
     </form>
     {% endif %}
   </div>
 {%- endmacro %}
 
-{% macro render_order_column(title, icon, tone, pager, page_param, empty_text, staff_page_state, staff_pagination_args) -%}
-  <section class="glass-card p-4 flex flex-col min-h-[720px]">
-    <div class="flex items-center justify-between gap-3 pb-3 border-b border-white/40 dark:border-slate-700/50">
-      <div class="flex items-center gap-2">
-        <span class="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-{{ tone }}-500/10 text-{{ tone }}-500">
-          <i data-lucide="{{ icon }}" width="18" height="18"></i>
-        </span>
-        <div>
-          <h3 class="text-base font-bold text-slate-800 dark:text-white">{{ title }}</h3>
-          <p class="text-xs text-slate-400">冻结订单自动置顶</p>
-        </div>
-      </div>
-      <span class="inline-flex min-w-8 justify-center rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">{{ pager.total }}</span>
-    </div>
-
-    <div class="mt-4 space-y-3 flex-1">
-      {% for order in pager.items %}
-      <article class="rounded-2xl border p-4 {% if order.is_frozen %}border-red-200 bg-red-50/70 dark:border-red-900/40 dark:bg-red-950/10{% else %}border-white/50 bg-white/40 dark:border-slate-700/50 dark:bg-slate-900/20{% endif %}">
-        <div class="flex items-start justify-between gap-3">
-          <div>
-            <div class="font-mono text-[11px] text-slate-500 dark:text-slate-400">{{ order.order_no }}</div>
-            <div class="mt-1 font-semibold text-slate-800 dark:text-white">{{ order.project_display }}</div>
-          </div>
-          <div class="flex flex-wrap justify-end gap-1">
-            {% if order.is_frozen %}
-            <span class="px-2 py-1 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 text-[11px] font-semibold">冻结中</span>
-            {% endif %}
-            {% set color = order.status_color %}
-            <span class="px-2 py-1 rounded-full bg-{{ color }}-100 text-{{ color }}-700 dark:bg-{{ color }}-900/30 dark:text-{{ color }}-300 text-[11px] font-semibold">{{ order.status_label }}</span>
-          </div>
-        </div>
-        <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-500 dark:text-slate-400">
-          <div>老板: <span class="text-slate-700 dark:text-slate-200">{{ order.boss.nickname if order.boss else '-' }}</span></div>
-          <div>陪玩: <span class="text-slate-700 dark:text-slate-200">{{ order.player.player_nickname if order.player else '-' }}</span></div>
-          <div>客服: <span class="text-slate-700 dark:text-slate-200">{{ order.staff.staff_display_name if order.staff else '-' }}</span></div>
-          <div>时间: <span class="text-slate-700 dark:text-slate-200">{{ fmt_dt(order.created_at, '%m-%d %H:%M') }}</span></div>
-        </div>
-        <div class="mt-3 flex items-center justify-between gap-3">
-          <div class="text-sm font-bold text-slate-800 dark:text-white">¥ {{ "%.2f"|format(order.total_price) }}</div>
-          <div class="text-xs text-green-600 dark:text-green-400">收益 {{ "%.2f"|format(order.player_earning) }}</div>
-        </div>
-        {{ render_order_actions(order) }}
-      </article>
+{% macro render_gift_actions(go) -%}
+  <div class="flex justify-end gap-1">
+    {% if go.status != 'refunded' %}
+      {% if not go.is_frozen %}
+      <form action="{{ url_for('gifts.gift_action', order_id=go.id, action='freeze') }}" method="post" class="inline">
+        <button type="submit" class="text-orange-500 hover:text-orange-600 text-xs font-medium px-2 py-1 rounded hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors" onclick="return confirm('确认冻结?')">冻结</button>
+      </form>
       {% else %}
-      <div class="rounded-2xl border border-dashed border-slate-300/80 p-6 text-center text-sm text-slate-400 dark:border-slate-700/80">{{ empty_text }}</div>
-      {% endfor %}
-    </div>
-
-    {{ render_staff_pagination(page_param, pager, staff_page_state, staff_pagination_args) }}
-  </section>
-{%- endmacro %}
-
-{% macro render_gift_column(pager, page_param, staff_page_state, staff_pagination_args) -%}
-  <section class="glass-card p-4 flex flex-col min-h-[720px]">
-    <div class="flex items-center justify-between gap-3 pb-3 border-b border-white/40 dark:border-slate-700/50">
-      <div class="flex items-center gap-2">
-        <span class="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-pink-500/10 text-pink-500">
-          <i data-lucide="gift" width="18" height="18"></i>
-        </span>
-        <div>
-          <h3 class="text-base font-bold text-slate-800 dark:text-white">礼物</h3>
-          <p class="text-xs text-slate-400">冻结礼物自动置顶</p>
-        </div>
-      </div>
-      <span class="inline-flex min-w-8 justify-center rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">{{ pager.total }}</span>
-    </div>
-
-    <div class="mt-4 space-y-3 flex-1">
-      {% for go in pager.items %}
-      <article class="rounded-2xl border p-4 {% if go.is_frozen %}border-red-200 bg-red-50/70 dark:border-red-900/40 dark:bg-red-950/10{% else %}border-white/50 bg-white/40 dark:border-slate-700/50 dark:bg-slate-900/20{% endif %}">
-        <div class="flex items-start justify-between gap-3">
-          <div class="flex items-start gap-3">
-            {% if go.gift and go.gift.image %}
-            <img src="{{ url_for('static', filename=go.gift.image) }}" alt="" class="h-10 w-10 rounded-2xl object-cover ring-1 ring-white/60 dark:ring-slate-700/60">
-            {% endif %}
-            <div>
-              <div class="font-semibold text-slate-800 dark:text-white">
-                {{ go.gift.name if go.gift else '-' }}
-                {% if go.gift and go.gift.gift_type == 'crown' %}
-                <span class="ml-1 text-[11px] text-amber-500">冠名</span>
-                {% endif %}
-              </div>
-              <div class="mt-1 text-xs text-slate-500 dark:text-slate-400">x{{ go.quantity }} · {{ fmt_dt(go.created_at, '%m-%d %H:%M') }}</div>
-            </div>
-          </div>
-          <div class="flex flex-wrap justify-end gap-1">
-            {% if go.status == 'refunded' %}
-            <span class="px-2 py-1 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 text-[11px] font-semibold">已退款</span>
-            {% elif go.is_frozen %}
-            <span class="px-2 py-1 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 text-[11px] font-semibold">冻结中</span>
-            {% else %}
-            <span class="px-2 py-1 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 text-[11px] font-semibold">已完成</span>
-            {% endif %}
-          </div>
-        </div>
-        <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-500 dark:text-slate-400">
-          <div>老板: <span class="text-slate-700 dark:text-slate-200">{{ go.boss.nickname if go.boss else '-' }}</span></div>
-          <div>收礼人: <span class="text-slate-700 dark:text-slate-200">{{ (go.player.player_nickname or go.player.nickname or go.player.username) if go.player else '-' }}</span></div>
-          <div>客服: <span class="text-slate-700 dark:text-slate-200">{{ go.staff.staff_display_name if go.staff else '-' }}</span></div>
-          <div>收益: <span class="text-green-600 dark:text-green-400">{{ "%.2f"|format(go.player_earning) }}</span></div>
-        </div>
-        <div class="mt-3 flex items-center justify-between gap-3">
-          <div class="text-sm font-bold text-slate-800 dark:text-white">¥ {{ "%.2f"|format(go.total_price) }}</div>
-          <div class="flex flex-wrap gap-2">
-            {% if go.status != 'refunded' %}
-              {% if not go.is_frozen %}
-              <form action="{{ url_for('gifts.gift_action', order_id=go.id, action='freeze') }}" method="post" class="inline">
-                <button type="submit" class="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-300 text-xs font-medium" onclick="return confirm('确认冻结?')">冻结</button>
-              </form>
-              {% else %}
-              <form action="{{ url_for('gifts.gift_action', order_id=go.id, action='unfreeze') }}" method="post" class="inline">
-                <button type="submit" class="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-600 dark:bg-sky-900/20 dark:text-sky-300 text-xs font-medium" onclick="return confirm('确认解冻? 冠名礼物佣金将到账')">解冻</button>
-              </form>
-              {% endif %}
-              <form action="{{ url_for('gifts.gift_action', order_id=go.id, action='refund') }}" method="post" class="inline">
-                <button type="submit" class="px-2.5 py-1 rounded-lg bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-300 text-xs font-medium" onclick="return confirm('确认退款?')">退款</button>
-              </form>
-            {% endif %}
-          </div>
-        </div>
-      </article>
-      {% else %}
-      <div class="rounded-2xl border border-dashed border-slate-300/80 p-6 text-center text-sm text-slate-400 dark:border-slate-700/80">暂无礼物记录</div>
-      {% endfor %}
-    </div>
-
-    {{ render_staff_pagination(page_param, pager, staff_page_state, staff_pagination_args) }}
-  </section>
+      <form action="{{ url_for('gifts.gift_action', order_id=go.id, action='unfreeze') }}" method="post" class="inline">
+        <button type="submit" class="text-blue-500 hover:text-blue-600 text-xs font-medium px-2 py-1 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors" onclick="return confirm('确认解冻? 冠名礼物佣金将到账')">解冻</button>
+      </form>
+      {% endif %}
+      <form action="{{ url_for('gifts.gift_action', order_id=go.id, action='refund') }}" method="post" class="inline">
+        <button type="submit" class="text-red-500 hover:text-red-600 text-xs font-medium px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors" onclick="return confirm('确认退款?')">退款</button>
+      </form>
+    {% endif %}
+  </div>
 {%- endmacro %}
 
 {% block header_title %}订单中心{% endblock %}
@@ -206,25 +73,29 @@
 
   {# 搜索栏 #}
   <div class="glass-card p-6">
-    <form method="get" action="{{ url_for('orders.index') }}" class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3 items-end">
-      <div>
-        <label class="text-xs text-slate-500 dark:text-slate-400 mb-1 block">订单号</label>
-        <input type="text" name="q" value="{{ request.args.get('q', '') }}" placeholder="订单号..."
-          class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500">
-      </div>
+    <form method="get" action="{{ url_for('orders.index') }}" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 items-end">
+      <input type="hidden" name="section" value="{{ staff_section }}">
+      {% if staff_section == 'gift' %}
       <div>
         <label class="text-xs text-slate-500 dark:text-slate-400 mb-1 block">礼物名称</label>
         <input type="text" name="gift_name" value="{{ request.args.get('gift_name', '') }}" placeholder="礼物名称..."
           class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500">
       </div>
+      {% else %}
+      <div>
+        <label class="text-xs text-slate-500 dark:text-slate-400 mb-1 block">订单号</label>
+        <input type="text" name="q" value="{{ request.args.get('q', '') }}" placeholder="订单号..."
+          class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500">
+      </div>
+      {% endif %}
       <div>
         <label class="text-xs text-slate-500 dark:text-slate-400 mb-1 block">老板昵称</label>
         <input type="text" name="boss_name" value="{{ request.args.get('boss_name', '') }}" placeholder="老板昵称..."
           class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500">
       </div>
       <div>
-        <label class="text-xs text-slate-500 dark:text-slate-400 mb-1 block">陪玩/收礼人</label>
-        <input type="text" name="player_name" value="{{ request.args.get('player_name', '') }}" placeholder="陪玩或收礼人..."
+        <label class="text-xs text-slate-500 dark:text-slate-400 mb-1 block">{% if staff_section == 'gift' %}收礼人昵称{% else %}陪玩昵称{% endif %}</label>
+        <input type="text" name="player_name" value="{{ request.args.get('player_name', '') }}" placeholder="{% if staff_section == 'gift' %}收礼人昵称...{% else %}陪玩昵称...{% endif %}"
           class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500">
       </div>
       <div>
@@ -242,8 +113,9 @@
         <input type="date" name="date_to" value="{{ request.args.get('date_to', '') }}"
           class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500">
       </div>
+      {% if staff_section != 'gift' %}
       <div>
-        <label class="text-xs text-slate-500 dark:text-slate-400 mb-1 block">订单状态</label>
+        <label class="text-xs text-slate-500 dark:text-slate-400 mb-1 block">状态</label>
         <select name="status"
           class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500">
           <option value="all">全部状态</option>
@@ -254,14 +126,15 @@
           <option value="refunded" {% if request.args.get('status')=='refunded' %}selected{% endif %}>已退款</option>
         </select>
       </div>
-      <div class="col-span-2 md:col-span-4 xl:col-span-8 flex gap-2 justify-end">
+      {% endif %}
+      <div class="col-span-2 md:col-span-4 lg:col-span-7 flex gap-2 justify-end">
         <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded-xl text-sm font-medium transition-colors flex items-center gap-1">
           <i data-lucide="search" width="16" height="16"></i> 搜索
         </button>
-        <a href="{{ url_for('orders.index') }}" class="bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 px-5 py-2 rounded-xl text-sm font-medium transition-colors">重置</a>
+        <a href="{{ url_for('orders.index', section=staff_section) }}" class="bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 px-5 py-2 rounded-xl text-sm font-medium transition-colors">重置</a>
       </div>
       
-      <div class="col-span-2 md:col-span-4 xl:col-span-8 flex justify-end items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-700 mt-2">
+      <div class="col-span-2 md:col-span-4 lg:col-span-7 flex justify-end items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-700 mt-2">
         <div class="flex items-center gap-2">
             <input type="checkbox" id="auto-refresh" class="rounded text-purple-600 focus:ring-purple-500 border-slate-300 dark:border-slate-600 dark:bg-slate-700">
             <label for="auto-refresh" class="text-xs text-slate-500 dark:text-slate-400 cursor-pointer select-none">自动刷新 (30s)</label>
@@ -339,19 +212,156 @@
     <a href="{{ url_for('gifts.send') }}" class="bg-pink-600 hover:bg-pink-700 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center gap-2 shadow-sm">
       <i data-lucide="gift" width="18" height="18"></i> 赠送礼物
     </a>
-    {% if current_user.is_admin %}
-    <a href="{{ url_for('gift_admin.index') }}" class="bg-slate-600 hover:bg-slate-700 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center gap-2 shadow-sm">
-      <i data-lucide="settings" width="18" height="18"></i> 礼物配置
-    </a>
-    {% endif %}
   </div>
   {% endif %}
 
-  <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-    {{ render_order_column('订单', 'clipboard-list', 'violet', normal_orders, 'normal_page', '暂无常规订单', staff_page_state, staff_pagination_args) }}
-    {{ render_gift_column(gift_orders, 'gift_page', staff_page_state, staff_pagination_args) }}
-    {{ render_order_column('护航', 'shield', 'sky', escort_orders, 'escort_page', '暂无护航订单', staff_page_state, staff_pagination_args) }}
-    {{ render_order_column('代练', 'swords', 'emerald', training_orders, 'training_page', '暂无代练订单', staff_page_state, staff_pagination_args) }}
+  <div class="flex flex-wrap gap-2">
+    {{ render_staff_tab('订单', 'normal', staff_section, staff_tab_args) }}
+    {{ render_staff_tab('礼物', 'gift', staff_section, staff_tab_args) }}
+    {{ render_staff_tab('护航', 'escort', staff_section, staff_tab_args) }}
+    {{ render_staff_tab('代练', 'training', staff_section, staff_tab_args) }}
+  </div>
+
+  <div class="glass-card p-6">
+    {% set pager = gift_orders if staff_section == 'gift' else orders %}
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+      <div>
+        <h3 class="text-lg font-bold text-slate-800 dark:text-white">
+          {% if staff_section == 'gift' %}礼物{% elif staff_section == 'escort' %}护航{% elif staff_section == 'training' %}代练{% else %}订单{% endif %}
+        </h3>
+        <p class="text-xs text-slate-400">所有冻结中的{% if staff_section == 'gift' %}礼物{% else %}订单{% endif %}都会显示在最前面</p>
+      </div>
+      <div class="text-sm text-slate-500 dark:text-slate-400">共 {{ pager.total if pager else 0 }} 条</div>
+    </div>
+    <div class="overflow-x-auto">
+      {% if staff_section == 'gift' %}
+      <table class="w-full text-left border-collapse min-w-[900px]">
+        <thead>
+          <tr class="text-sm text-slate-400 border-b border-white/40 dark:border-slate-700/50">
+            <th class="pb-3 font-medium">老板</th>
+            <th class="pb-3 font-medium">收礼人</th>
+            <th class="pb-3 font-medium">礼物</th>
+            <th class="pb-3 font-medium">数量</th>
+            <th class="pb-3 font-medium">总价</th>
+            <th class="pb-3 font-medium">收礼收益</th>
+            <th class="pb-3 font-medium">客服</th>
+            <th class="pb-3 font-medium">时间</th>
+            <th class="pb-3 font-medium">状态</th>
+            <th class="pb-3 font-medium text-right">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for go in gift_orders.items %}
+          <tr class="border-b border-white/20 dark:border-slate-700/50 hover:bg-white/20 dark:hover:bg-slate-700/30 transition-colors text-sm {% if go.is_frozen %}bg-red-50/50 dark:bg-red-950/10{% endif %}">
+            <td class="py-3 font-medium text-slate-800 dark:text-white">{{ go.boss.nickname if go.boss else '-' }}</td>
+            <td class="py-3 font-medium text-slate-800 dark:text-white">{{ (go.player.player_nickname or go.player.nickname or go.player.username) if go.player else '-' }}</td>
+            <td class="py-3 text-slate-600 dark:text-slate-300">
+              <span class="flex items-center gap-1">
+                {% if go.gift and go.gift.image %}
+                <img src="{{ url_for('static', filename=go.gift.image) }}" class="w-5 h-5 rounded" alt="">
+                {% endif %}
+                {{ go.gift.name if go.gift else '-' }}
+                {% if go.gift and go.gift.gift_type == 'crown' %}
+                <span class="text-yellow-500 text-xs">(冠名)</span>
+                {% endif %}
+              </span>
+            </td>
+            <td class="py-3 text-slate-600 dark:text-slate-300">x{{ go.quantity }}</td>
+            <td class="py-3 font-bold text-slate-800 dark:text-white">¥{{ "%.2f"|format(go.total_price) }}</td>
+            <td class="py-3 text-green-600 dark:text-green-400 font-medium">¥{{ "%.2f"|format(go.player_earning) }}</td>
+            <td class="py-3 text-slate-500 dark:text-slate-400 text-xs">{{ go.staff.staff_display_name if go.staff else '-' }}</td>
+            <td class="py-3 text-slate-500 dark:text-slate-400 text-xs">{{ fmt_dt(go.created_at, '%m-%d %H:%M') }}</td>
+            <td class="py-3">
+              {% if go.status == 'refunded' %}
+              <span class="px-2 py-1 bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 text-xs rounded-full font-medium">已退款</span>
+              {% elif go.is_frozen %}
+              <span class="px-2 py-1 bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300 text-xs rounded-full font-medium">冻结中</span>
+              {% else %}
+              <span class="px-2 py-1 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 text-xs rounded-full font-medium">已完成</span>
+              {% endif %}
+            </td>
+            <td class="py-3 text-right">{{ render_gift_actions(go) }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="10" class="py-8 text-center text-slate-500">暂无礼物数据</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <table class="w-full text-left border-collapse min-w-[900px]">
+        <thead>
+          <tr class="text-sm text-slate-400 border-b border-white/40 dark:border-slate-700/50">
+            <th class="pb-3 font-medium">订单号</th>
+            <th class="pb-3 font-medium">老板</th>
+            <th class="pb-3 font-medium">陪玩</th>
+            <th class="pb-3 font-medium">游戏项目</th>
+            <th class="pb-3 font-medium">实际价格</th>
+            <th class="pb-3 font-medium">陪玩收益</th>
+            <th class="pb-3 font-medium">订单状态</th>
+            <th class="pb-3 font-medium">冻结</th>
+            <th class="pb-3 font-medium">客服</th>
+            <th class="pb-3 font-medium">派单日期</th>
+            <th class="pb-3 font-medium text-right">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for order in orders.items %}
+          <tr class="border-b border-white/20 dark:border-slate-700/50 hover:bg-white/20 dark:hover:bg-slate-700/30 transition-colors text-sm {% if order.is_frozen %}bg-red-50/50 dark:bg-red-950/10{% endif %}">
+            <td class="py-3 text-slate-600 dark:text-slate-300 font-mono text-xs">{{ order.order_no }}</td>
+            <td class="py-3 font-medium text-slate-800 dark:text-white">{{ order.boss.nickname if order.boss else '-' }}</td>
+            <td class="py-3 font-medium text-slate-800 dark:text-white">{{ order.player.player_nickname if order.player else '-' }}</td>
+            <td class="py-3 text-slate-600 dark:text-slate-300">
+              <span class="flex items-center gap-1"><i data-lucide="gamepad-2" width="14" height="14"></i> {{ order.project_display }}</span>
+            </td>
+            <td class="py-3 font-bold text-slate-800 dark:text-white">¥ {{ "%.2f"|format(order.total_price) }}</td>
+            <td class="py-3 text-green-600 dark:text-green-400 font-medium">{{ "%.2f"|format(order.player_earning) }}</td>
+            <td class="py-3">
+              {% set color = order.status_color %}
+              <span class="px-2 py-1 bg-{{ color }}-100 text-{{ color }}-800 dark:bg-{{ color }}-900/30 dark:text-{{ color }}-300 text-xs rounded-full font-medium">{{ order.status_label }}</span>
+            </td>
+            <td class="py-3">
+              {% if order.is_frozen %}
+              <span class="px-2 py-1 bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 text-xs rounded-full font-medium">冻结</span>
+              {% else %}
+              <span class="text-xs text-slate-400">正常</span>
+              {% endif %}
+            </td>
+            <td class="py-3 text-slate-500 dark:text-slate-400 text-xs">{{ order.staff.staff_display_name if order.staff else '-' }}</td>
+            <td class="py-3 text-slate-500 dark:text-slate-400 text-xs">{{ fmt_dt(order.created_at, '%m-%d %H:%M') }}</td>
+            <td class="py-3 text-right">{{ render_order_actions(order) }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="11" class="py-8 text-center text-slate-500">暂无订单数据</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+    </div>
+
+    {# 分页 #}
+    {% if pager and pager.pages > 1 %}
+    <div class="mt-6 flex justify-center">
+      <div class="flex flex-wrap items-center justify-center gap-2">
+        {% if pager.has_prev %}
+        <a href="{{ url_for('orders.index', section=staff_section, page=pager.prev_num, **staff_pagination_args) }}" class="px-3 py-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-300 dark:border-slate-600 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">上一页</a>
+        {% endif %}
+        <span class="px-3 py-1 text-slate-500 text-sm">第 {{ pager.page }} / {{ pager.pages }} 页</span>
+        {% if pager.has_next %}
+        <a href="{{ url_for('orders.index', section=staff_section, page=pager.next_num, **staff_pagination_args) }}" class="px-3 py-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-300 dark:border-slate-600 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">下一页</a>
+        {% endif %}
+        <form method="get" action="{{ url_for('orders.index') }}" class="flex items-center gap-1 ml-2">
+          <input type="hidden" name="section" value="{{ staff_section }}">
+          {% for key, value in staff_pagination_args.items() %}
+          <input type="hidden" name="{{ key }}" value="{{ value }}">
+          {% endfor %}
+          <span class="text-xs text-slate-400">跳转到</span>
+          <input type="number" name="page" min="1" max="{{ pager.pages }}" value="{{ pager.page }}" class="w-16 px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white">
+          <span class="text-xs text-slate-400">页</span>
+          <button type="submit" class="px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs">跳转</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
   </div>
 
   {# ===== 老板视图 ===== #}
