@@ -61,6 +61,7 @@
             <th class="px-6 py-4 font-medium text-slate-500 dark:text-slate-400">操作客服</th>
             <th class="px-6 py-4 font-medium text-slate-500 dark:text-slate-400">备注</th>
             <th class="px-6 py-4 font-medium text-slate-500 dark:text-slate-400">时间</th>
+            <th class="px-6 py-4 font-medium text-slate-500 dark:text-slate-400">操作</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100 dark:divide-slate-800/50">
@@ -69,7 +70,8 @@
           {% set target = user_map.get(log.user_id) %}
           {% set operator = user_map.get(log.operator_id) %}
           {% set target_name = (target.player_nickname or target.kook_username or target.nickname or target.username) if target else '用户已删除' %}
-          <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+          {% set is_refunded = refunded_map.get(log.id) %}
+          <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors {% if is_refunded %}text-slate-900 dark:text-slate-300 line-through{% endif %}">
             <td class="px-6 py-4 text-slate-500 font-mono">#{{ log.id }}</td>
             <td class="px-6 py-4">
               {% if target %}
@@ -85,24 +87,32 @@
               {% endif %}
             </td>
             <td class="px-6 py-4">
-              {% if log.amount < 0 %}
-              <span class="font-bold text-red-600 dark:text-red-300">-¥{{ "%.2f"|format(log.amount|abs) }}</span>
-              {% else %}
-              <span class="font-bold text-emerald-600 dark:text-emerald-300">+¥{{ "%.2f"|format(log.amount) }}</span>
-              {% endif %}
+              <span class="font-bold {% if is_refunded %}text-slate-900 dark:text-slate-300{% else %}text-emerald-600 dark:text-emerald-300{% endif %}">+¥{{ "%.2f"|format(log.amount) }}</span>
             </td>
             <td class="px-6 py-4 text-slate-700 dark:text-slate-300">
               {{ operator.staff_display_name if operator else '未知' }}
             </td>
             <td class="px-6 py-4 text-slate-500 dark:text-slate-400 max-w-[320px] truncate">
               {{ log.reason or '-' }}
+              {% if is_refunded %}
+              <span class="ml-2 text-xs text-slate-900 dark:text-slate-300">（已退款，不计入统计）</span>
+              {% endif %}
             </td>
             <td class="px-6 py-4 text-slate-500 dark:text-slate-400">{{ fmt_dt(log.created_at, '%Y-%m-%d %H:%M:%S') }}</td>
+            <td class="px-6 py-4">
+              {% if is_refunded %}
+              <span class="px-2 py-1 text-xs rounded-full bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-300">已退款</span>
+              {% else %}
+              <form method="post" action="{{ url_for('finance.refund_recharge', log_id=log.id) }}" class="inline">
+                <button type="submit" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-600 hover:bg-red-700 text-white" onclick="return confirm('确认退款该充值流水？系统将从用户余额扣减对应金额。')">退款</button>
+              </form>
+              {% endif %}
+            </td>
           </tr>
           {% endfor %}
           {% else %}
           <tr>
-            <td colspan="6" class="py-10 text-center text-slate-400">暂无充值记录</td>
+            <td colspan="7" class="py-10 text-center text-slate-400">暂无充值记录</td>
           </tr>
           {% endif %}
         </tbody>

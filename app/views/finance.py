@@ -416,15 +416,10 @@ def recharge_overview():
         BalanceLog.amount > 0,
         ~func.coalesce(BalanceLog.reason, '').ilike('%赠金%'),
     )
-    # 负值管理变账也纳入充值总览，便于人工对账
-    negative_adjust_cond = and_(
-        BalanceLog.change_type == 'admin_adjust',
-        BalanceLog.amount < 0,
-    )
 
     query = BalanceLog.query.filter(
         BalanceLog.operator_id.isnot(None),
-        or_(recharge_cond, negative_adjust_cond),
+        recharge_cond,
     )
 
     from_date_obj = None
@@ -466,9 +461,7 @@ def recharge_overview():
         BalanceLog.id,
         BalanceLog.user_id,
         BalanceLog.operator_id,
-        BalanceLog.change_type,
         BalanceLog.amount,
-        BalanceLog.reason,
         BalanceLog.created_at,
     ).order_by(BalanceLog.created_at.asc(), BalanceLog.id.asc()).all()
 
@@ -476,16 +469,14 @@ def recharge_overview():
     today_start, tomorrow_start = _bj_day_utc_range(bj_today)
     today_rows = BalanceLog.query.filter(
         BalanceLog.operator_id.isnot(None),
-        or_(recharge_cond, negative_adjust_cond),
+        recharge_cond,
         BalanceLog.created_at >= today_start,
         BalanceLog.created_at < tomorrow_start,
     ).with_entities(
         BalanceLog.id,
         BalanceLog.user_id,
         BalanceLog.operator_id,
-        BalanceLog.change_type,
         BalanceLog.amount,
-        BalanceLog.reason,
         BalanceLog.created_at,
     ).order_by(BalanceLog.created_at.asc(), BalanceLog.id.asc()).all()
 
@@ -524,25 +515,14 @@ def recharge_overview():
 
         refunded_ids = _build_refunded_recharge_ids(all_recharge_rows, refund_rows)
 
-    def _visible_recharge_row(row):
-        if row.change_type == 'recharge' and row.id in refunded_ids:
-            return False
-        return True
-
-    visible_filtered_rows = [r for r in filtered_rows if _visible_recharge_row(r)]
-    visible_today_rows = [r for r in today_rows if _visible_recharge_row(r)]
+    visible_filtered_rows = [r for r in filtered_rows if r.id not in refunded_ids]
+    visible_today_rows = [r for r in today_rows if r.id not in refunded_ids]
     filtered_total = sum((_q_money(r.amount) for r in visible_filtered_rows), Decimal('0.00'))
     filtered_count = len(visible_filtered_rows)
     today_total = sum((_q_money(r.amount) for r in visible_today_rows), Decimal('0.00'))
     today_count = len(visible_today_rows)
 
-    logs_query = query
-    if refunded_ids:
-        logs_query = logs_query.filter(or_(
-            BalanceLog.change_type != 'recharge',
-            ~BalanceLog.id.in_(list(refunded_ids)),
-        ))
-    logs = logs_query.order_by(BalanceLog.created_at.desc()).paginate(page=page, per_page=20, error_out=False)
+    logs = query.order_by(BalanceLog.created_at.desc()).paginate(page=page, per_page=20, error_out=False)
 
     user_ids = set()
     for log in logs.items:
@@ -569,8 +549,109 @@ def recharge_overview():
             'today_total': today_total,
             'today_count': today_count,
         },
+        refunded_map={log.id: (log.id in refunded_ids) for log in logs.items},
         pagination_args=pagination_args,
     )
+
+
+@finance_bp.route('/recharges/<int:log_id>/refund', methods=['POST'])
+@login_required
+@admin_required
+def refund_recharge(log_id):
+    """在充值总览中对单笔充值执行退款。"""
+    recharge_log = BalanceLog.query.filter(
+        BalanceLog.id == log_id,
+        BalanceLog.change_type == 'recharge',
+        BalanceLog.amount > 0,
+        BalanceLog.operator_id.isnot(None),
+        ~func.coalesce(BalanceLog.reason, '').ilike('%赠金%'),
+    ).first()
+    if not recharge_log:
+        flash('该记录不是可退款的充值流水', 'error')
+        return redirect(request.referrer or url_for('finance.recharge_overview'))
+
+    user = db.session.get(User, recharge_log.user_id)
+    if not user:
+        flash('充值用户不存在，无法退款', 'error')
+        return redirect(request.referrer or url_for('finance.recharge_overview'))
+
+    all_recharge_rows = BalanceLog.query.filter(
+        BalanceLog.change_type == 'recharge',
+        BalanceLog.amount > 0,
+        BalanceLog.operator_id.isnot(None),
+        ~func.coalesce(BalanceLog.reason, '').ilike('%赠金%'),
+        BalanceLog.user_id == recharge_log.user_id,
+    ).with_entities(
+        BalanceLog.id,
+        BalanceLog.user_id,
+        BalanceLog.operator_id,
+        BalanceLog.amount,
+        BalanceLog.created_at,
+    ).all()
+
+    refund_rows = BalanceLog.query.filter(
+        BalanceLog.change_type == 'admin_adjust',
+        BalanceLog.amount < 0,
+        BalanceLog.operator_id.isnot(None),
+        BalanceLog.user_id == recharge_log.user_id,
+    ).with_entities(
+        BalanceLog.id,
+        BalanceLog.user_id,
+        BalanceLog.operator_id,
+        BalanceLog.amount,
+        BalanceLog.created_at,
+        BalanceLog.reason,
+    ).all()
+
+    refunded_ids = _build_refunded_recharge_ids(all_recharge_rows, refund_rows)
+    if recharge_log.id in refunded_ids:
+        flash('该充值记录已退款，无需重复操作', 'error')
+        return redirect(request.referrer or url_for('finance.recharge_overview'))
+
+    refund_amount = _q_money(recharge_log.amount)
+    coin_balance = _q_money(user.m_coin)
+    # 充值退款仅扣嗯呢币余额，不挪用赠金余额。
+    if coin_balance < refund_amount:
+        flash(
+            f'退款失败：用户嗯呢币余额不足（需 ¥{refund_amount:.2f}，当前 ¥{coin_balance:.2f}）',
+            'error'
+        )
+        return redirect(request.referrer or url_for('finance.recharge_overview'))
+    user.m_coin = coin_balance - refund_amount
+
+    extra_reason = (request.form.get('reason') or '').strip()
+    reason = f'充值退款 [recharge_ref:{recharge_log.id}]'
+    if extra_reason:
+        reason = f'{reason} {extra_reason}'
+    elif recharge_log.reason:
+        reason = f'{reason} 原因: {recharge_log.reason}'
+
+    refund_log = BalanceLog(
+        user_id=user.id,
+        change_type='admin_adjust',
+        amount=-refund_amount,
+        balance_after=_q_money(user.m_coin) + _q_money(user.m_coin_gift),
+        reason=reason,
+        operator_id=current_user.id,
+    )
+    db.session.add(refund_log)
+    log_operation(
+        current_user.id,
+        'balance_recharge_refund',
+        'balance_log',
+        recharge_log.id,
+        f'充值退款: 流水#{recharge_log.id}, 金额={refund_amount}, 用户ID={user.id}',
+    )
+
+    try:
+        db.session.commit()
+        flash(f'退款成功：已退回充值流水 #{recharge_log.id}', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'退款失败: {e}', 'error')
+
+    return redirect(request.referrer or url_for('finance.recharge_overview'))
+
 
 @finance_bp.route('/withdraw/<int:request_id>/audit', methods=['POST'])
 @login_required
