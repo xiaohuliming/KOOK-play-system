@@ -47,6 +47,8 @@ def _bj_day_utc_range(day_obj):
 _RECHARGE_REF_RE = re.compile(r'\[recharge[_-]?ref:(\d+)\]', re.IGNORECASE)
 _RECHARGE_CN_REF_RE = re.compile(r'充值(?:流水|记录|单号|ID)?\s*#?\s*(\d+)', re.IGNORECASE)
 _REFUND_REASON_KEYWORDS = ('充值退款', '退款充值', '撤销充值', '回退充值', '回滚充值')
+# 历史兼容：旧数据里常见“充值后手动变账负数退款”，允许在一定时间窗内自动配对
+_LEGACY_REFUND_MAX_GAP = timedelta(hours=24)
 
 
 def _q_money(value):
@@ -76,10 +78,32 @@ def _build_refunded_recharge_ids(all_recharge_rows, refund_rows):
     refunded_ids = set()
     recharge_map = {row.id: row for row in all_recharge_rows}
 
-    buckets = defaultdict(deque)
+    buckets_by_operator = defaultdict(deque)
+    buckets_by_user = defaultdict(deque)
     for row in sorted(all_recharge_rows, key=lambda r: (r.created_at, r.id)):
-        key = (row.user_id, row.operator_id, _q_money(row.amount))
-        buckets[key].append((row.id, row.created_at))
+        amount_key = _q_money(row.amount)
+        op_key = (row.user_id, row.operator_id, amount_key)
+        user_key = (row.user_id, amount_key)
+        buckets_by_operator[op_key].append((row.id, row.created_at))
+        buckets_by_user[user_key].append((row.id, row.created_at))
+
+    def _consume_bucket_pair(bucket, refund_time, max_gap=None):
+        if not bucket:
+            return None
+        while bucket:
+            recharge_id, recharge_time = bucket[0]
+            if recharge_id in refunded_ids:
+                bucket.popleft()
+                continue
+            if refund_time < recharge_time:
+                return None
+            if max_gap and (refund_time - recharge_time) > max_gap:
+                bucket.popleft()
+                continue
+            refunded_ids.add(recharge_id)
+            bucket.popleft()
+            return recharge_id
+        return None
 
     for refund in sorted(refund_rows, key=lambda r: (r.created_at, r.id)):
         refund_amount = _q_money(abs(refund.amount))
@@ -91,24 +115,28 @@ def _build_refunded_recharge_ids(all_recharge_rows, refund_rows):
                 refunded_ids.add(explicit_ref_id)
                 continue
 
-        if not _is_recharge_refund_reason(refund.reason):
+        key_op = (refund.user_id, refund.operator_id, refund_amount)
+        key_user = (refund.user_id, refund_amount)
+
+        if _is_recharge_refund_reason(refund.reason):
+            # 新体系：优先按 操作人+用户+金额 匹配；再回退到 用户+金额
+            matched_id = _consume_bucket_pair(buckets_by_operator.get(key_op), refund.created_at)
+            if matched_id is None:
+                _consume_bucket_pair(buckets_by_user.get(key_user), refund.created_at)
             continue
 
-        key = (refund.user_id, refund.operator_id, refund_amount)
-        queue = buckets.get(key)
-        if not queue:
-            continue
-
-        while queue:
-            recharge_id, recharge_time = queue[0]
-            if recharge_id in refunded_ids:
-                queue.popleft()
-                continue
-            if refund.created_at < recharge_time:
-                break
-            refunded_ids.add(recharge_id)
-            queue.popleft()
-            break
+        # 历史兼容：无退款关键词也可按“充值后24小时内同金额负值管理变账”判定为退款
+        matched_id = _consume_bucket_pair(
+            buckets_by_operator.get(key_op),
+            refund.created_at,
+            max_gap=_LEGACY_REFUND_MAX_GAP,
+        )
+        if matched_id is None:
+            _consume_bucket_pair(
+                buckets_by_user.get(key_user),
+                refund.created_at,
+                max_gap=_LEGACY_REFUND_MAX_GAP,
+            )
 
     return refunded_ids
 
