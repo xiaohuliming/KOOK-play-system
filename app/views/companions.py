@@ -38,11 +38,11 @@ def toggle_status(user_id):
     user = User.query.get_or_404(user_id)
     if not user.is_player:
         flash('只能修改陪玩状态', 'error')
-        return redirect(url_for('companions.index'))
+        return redirect(request.referrer or url_for('companions.index'))
 
     user.status = not user.status
     db.session.commit()
 
     status_msg = '启用' if user.status else '禁用'
     flash(f'陪玩 {user.player_nickname} 已{status_msg}', 'success')
-    return redirect(url_for('companions.index'))
+    return redirect(request.referrer or url_for('companions.index'))

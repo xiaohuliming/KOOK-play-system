@@ -32,7 +32,7 @@ def grant(record_id):
     record = UpgradeRecord.query.get_or_404(record_id)
     if record.benefit_status == 'granted':
         flash('权益已发放', 'error')
-        return redirect(url_for('upgrade_admin.index'))
+        return redirect(request.referrer or url_for('upgrade_admin.index'))
 
     record.benefit_status = 'granted'
     record.granted_by = current_user.id
@@ -44,4 +44,4 @@ def grant(record_id):
     db.session.commit()
 
     flash('权益已确认发放', 'success')
-    return redirect(url_for('upgrade_admin.index'))
+    return redirect(request.referrer or url_for('upgrade_admin.index'))

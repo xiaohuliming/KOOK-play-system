@@ -126,7 +126,7 @@ def add():
             return render_template('admin/gift_form.html', gift=None)
 
         flash(f'礼物 "{name}" 添加成功', 'success')
-        return redirect(url_for('gift_admin.index'))
+        return redirect(request.referrer or url_for('gift_admin.index'))
 
     return render_template('admin/gift_form.html', gift=None)
 
@@ -139,7 +139,7 @@ def edit(gift_id):
     ok, err = _ensure_gift_sort_order_column()
     if not ok:
         flash(err, 'error')
-        return redirect(url_for('gift_admin.index'))
+        return redirect(request.referrer or url_for('gift_admin.index'))
 
     gift = Gift.query.filter(
         Gift.id == gift_id,
@@ -168,7 +168,7 @@ def edit(gift_id):
 
         db.session.commit()
         flash(f'礼物 "{gift.name}" 已更新', 'success')
-        return redirect(url_for('gift_admin.index'))
+        return redirect(request.referrer or url_for('gift_admin.index'))
 
     return render_template('admin/gift_form.html', gift=gift)
 
@@ -186,7 +186,7 @@ def edit_broadcast(gift_id):
     gift.crown_broadcast_template = request.form.get('crown_broadcast_template', '')
     db.session.commit()
     flash(f'"{gift.name}" 播报模板已更新', 'success')
-    return redirect(url_for('gift_admin.index'))
+    return redirect(request.referrer or url_for('gift_admin.index'))
 
 
 @gift_admin_bp.route('/<int:gift_id>/move/<string:direction>', methods=['POST'])
@@ -197,33 +197,33 @@ def move(gift_id, direction):
     ok, err = _ensure_gift_sort_order_column()
     if not ok:
         flash(err, 'error')
-        return redirect(url_for('gift_admin.index'))
+        return redirect(request.referrer or url_for('gift_admin.index'))
 
     if direction not in ('up', 'down'):
         flash('无效的移动方向', 'error')
-        return redirect(url_for('gift_admin.index'))
+        return redirect(request.referrer or url_for('gift_admin.index'))
 
     _normalize_gift_sort_orders()
     gifts = Gift.query.filter(Gift.deleted_at.is_(None)).order_by(Gift.sort_order.asc(), Gift.id.asc()).all()
     current_idx = next((i for i, g in enumerate(gifts) if g.id == gift_id), None)
     if current_idx is None:
         flash('礼物不存在', 'error')
-        return redirect(url_for('gift_admin.index'))
+        return redirect(request.referrer or url_for('gift_admin.index'))
 
     if direction == 'up':
         if current_idx == 0:
-            return redirect(url_for('gift_admin.index'))
+            return redirect(request.referrer or url_for('gift_admin.index'))
         target_idx = current_idx - 1
     else:
         if current_idx >= len(gifts) - 1:
-            return redirect(url_for('gift_admin.index'))
+            return redirect(request.referrer or url_for('gift_admin.index'))
         target_idx = current_idx + 1
 
     current_gift = gifts[current_idx]
     target_gift = gifts[target_idx]
     current_gift.sort_order, target_gift.sort_order = target_gift.sort_order, current_gift.sort_order
     db.session.commit()
-    return redirect(url_for('gift_admin.index'))
+    return redirect(request.referrer or url_for('gift_admin.index'))
 
 
 @gift_admin_bp.route('/reorder', methods=['POST'])
@@ -278,7 +278,7 @@ def delete(gift_id):
     ok, err = _ensure_gift_sort_order_column()
     if not ok:
         flash(err, 'error')
-        return redirect(url_for('gift_admin.index'))
+        return redirect(request.referrer or url_for('gift_admin.index'))
 
     gift = Gift.query.filter(
         Gift.id == gift_id,
@@ -293,7 +293,7 @@ def delete(gift_id):
         flash(f'礼物“{gift.name}”已删除（保留 {used_count} 条赠送记录）', 'success')
     else:
         flash(f'礼物“{gift.name}”已删除', 'success')
-    return redirect(url_for('gift_admin.index'))
+    return redirect(request.referrer or url_for('gift_admin.index'))
 
 
 def _normalize_gift_sort_orders():

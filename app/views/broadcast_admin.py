@@ -102,12 +102,12 @@ def add():
     # 验证类型合法
     if broadcast_type not in BROADCAST_TYPES:
         flash('未知的播报类型', 'error')
-        return redirect(url_for('broadcast_admin.index'))
+        return redirect(request.referrer or url_for('broadcast_admin.index'))
 
     channel_id = request.form.get('channel_id', '').strip()
     if BROADCAST_TYPES[broadcast_type].get('target') == 'channel' and not channel_id:
         flash('该播报类型需要填写 KOOK 频道ID', 'error')
-        return redirect(url_for('broadcast_admin.index'))
+        return redirect(request.referrer or url_for('broadcast_admin.index'))
 
     schedule_weekday = None
     schedule_time = None
@@ -126,12 +126,12 @@ def add():
         target_level = _normalize_upgrade_target_level(request.form.get('target_level'))
         if (request.form.get('target_level') or '').strip() and not target_level:
             flash('升级播报目标等级无效', 'error')
-            return redirect(url_for('broadcast_admin.index'))
+            return redirect(request.referrer or url_for('broadcast_admin.index'))
 
     image_url, image_error = _resolve_uploaded_image()
     if image_error:
         flash(f'图片上传失败: {image_error}', 'error')
-        return redirect(url_for('broadcast_admin.index'))
+        return redirect(request.referrer or url_for('broadcast_admin.index'))
 
     config = BroadcastConfig(
         broadcast_type=broadcast_type,
@@ -154,7 +154,7 @@ def add():
     db.session.commit()
 
     flash(f'播报配置已添加: {type_label}', 'success')
-    return redirect(url_for('broadcast_admin.index'))
+    return redirect(request.referrer or url_for('broadcast_admin.index'))
 
 
 @broadcast_admin_bp.route('/<int:config_id>/edit', methods=['POST'])
@@ -169,7 +169,7 @@ def edit(config_id):
     config.channel_id = request.form.get('channel_id', '').strip()
     if BROADCAST_TYPES.get(config.broadcast_type, {}).get('target') == 'channel' and not config.channel_id:
         flash('该播报类型需要填写 KOOK 频道ID', 'error')
-        return redirect(url_for('broadcast_admin.index'))
+        return redirect(request.referrer or url_for('broadcast_admin.index'))
 
     if config.broadcast_type == 'weekly_withdraw_reminder':
         weekday_raw = request.form.get('schedule_weekday', '6')
@@ -190,13 +190,13 @@ def edit(config_id):
         target_level = _normalize_upgrade_target_level(request.form.get('target_level'))
         if (request.form.get('target_level') or '').strip() and not target_level:
             flash('升级播报目标等级无效', 'error')
-            return redirect(url_for('broadcast_admin.index'))
+            return redirect(request.referrer or url_for('broadcast_admin.index'))
         config.target_level = target_level
 
     image_url, image_error = _resolve_uploaded_image(config.image_url)
     if image_error:
         flash(f'图片上传失败: {image_error}', 'error')
-        return redirect(url_for('broadcast_admin.index'))
+        return redirect(request.referrer or url_for('broadcast_admin.index'))
     config.image_url = image_url
 
     config.status = 'status' in request.form
@@ -206,7 +206,7 @@ def edit(config_id):
     db.session.commit()
 
     flash('播报配置已更新', 'success')
-    return redirect(url_for('broadcast_admin.index'))
+    return redirect(request.referrer or url_for('broadcast_admin.index'))
 
 
 @broadcast_admin_bp.route('/<int:config_id>/delete', methods=['POST'])
@@ -221,7 +221,7 @@ def delete(config_id):
     db.session.commit()
 
     flash('播报配置已删除', 'success')
-    return redirect(url_for('broadcast_admin.index'))
+    return redirect(request.referrer or url_for('broadcast_admin.index'))
 
 
 @broadcast_admin_bp.route('/types')

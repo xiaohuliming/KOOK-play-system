@@ -26,11 +26,11 @@ def add_project():
     sort_order = request.form.get('sort_order', 0, type=int)
     if not name:
         flash('项目名称不能为空', 'error')
-        return redirect(url_for('project_admin.index'))
+        return redirect(request.referrer or url_for('project_admin.index'))
 
     if Project.query.filter_by(name=name).first():
         flash('项目名称已存在', 'error')
-        return redirect(url_for('project_admin.index'))
+        return redirect(request.referrer or url_for('project_admin.index'))
 
     project = Project(name=name, sort_order=sort_order)
     db.session.add(project)
@@ -40,7 +40,7 @@ def add_project():
     db.session.commit()
 
     flash('项目添加成功', 'success')
-    return redirect(url_for('project_admin.index'))
+    return redirect(request.referrer or url_for('project_admin.index'))
 
 
 @project_admin_bp.route('/<int:project_id>/edit', methods=['POST'])
@@ -57,7 +57,7 @@ def edit_project(project_id):
     db.session.commit()
 
     flash('项目更新成功', 'success')
-    return redirect(url_for('project_admin.index'))
+    return redirect(request.referrer or url_for('project_admin.index'))
 
 
 @project_admin_bp.route('/<int:project_id>/delete', methods=['POST'])
@@ -75,7 +75,7 @@ def delete_project(project_id):
     db.session.commit()
 
     flash('项目已删除', 'success')
-    return redirect(url_for('project_admin.index'))
+    return redirect(request.referrer or url_for('project_admin.index'))
 
 
 @project_admin_bp.route('/<int:project_id>/items/add', methods=['POST'])
@@ -86,7 +86,7 @@ def add_item(project_id):
     name = request.form.get('name', '').strip()
     if not name:
         flash('子项目名称不能为空', 'error')
-        return redirect(url_for('project_admin.index'))
+        return redirect(request.referrer or url_for('project_admin.index'))
 
     item = ProjectItem(
         project_id=project.id,
@@ -110,7 +110,7 @@ def add_item(project_id):
     db.session.commit()
 
     flash('子项目添加成功', 'success')
-    return redirect(url_for('project_admin.index'))
+    return redirect(request.referrer or url_for('project_admin.index'))
 
 
 @project_admin_bp.route('/items/<int:item_id>/edit', methods=['POST'])
@@ -136,7 +136,7 @@ def edit_item(item_id):
     db.session.commit()
 
     flash('子项目更新成功', 'success')
-    return redirect(url_for('project_admin.index'))
+    return redirect(request.referrer or url_for('project_admin.index'))
 
 
 @project_admin_bp.route('/items/<int:item_id>/delete', methods=['POST'])
@@ -152,4 +152,4 @@ def delete_item(item_id):
     db.session.commit()
 
     flash('子项目已删除', 'success')
-    return redirect(url_for('project_admin.index'))
+    return redirect(request.referrer or url_for('project_admin.index'))

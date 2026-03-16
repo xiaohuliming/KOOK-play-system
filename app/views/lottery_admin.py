@@ -176,7 +176,7 @@ def delete(lottery_id):
     lottery = Lottery.query.get_or_404(lottery_id)
     if lottery.status == 'published':
         flash('已发布的抽奖请先取消再删除', 'error')
-        return redirect(url_for('lottery_admin.detail', lottery_id=lottery.id))
+        return redirect(request.referrer or url_for('lottery_admin.detail', lottery_id=lottery.id))
 
     title = lottery.title
     db.session.delete(lottery)
@@ -187,4 +187,4 @@ def delete(lottery_id):
     db.session.commit()
 
     flash('抽奖已删除', 'success')
-    return redirect(url_for('lottery_admin.index'))
+    return redirect(request.referrer or url_for('lottery_admin.index'))

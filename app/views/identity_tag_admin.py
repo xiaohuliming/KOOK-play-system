@@ -51,19 +51,19 @@ def add():
 
     if not name:
         flash('标签名称不能为空', 'error')
-        return redirect(url_for('identity_tag_admin.index'))
+        return redirect(request.referrer or url_for('identity_tag_admin.index'))
     if len(name) > 50:
         flash('标签名称最长 50 个字符', 'error')
-        return redirect(url_for('identity_tag_admin.index'))
+        return redirect(request.referrer or url_for('identity_tag_admin.index'))
     if IdentityTag.query.filter_by(name=name).first():
         flash('标签名称已存在', 'error')
-        return redirect(url_for('identity_tag_admin.index'))
+        return redirect(request.referrer or url_for('identity_tag_admin.index'))
     if multiplier <= 0:
         flash('经验倍率必须大于 0', 'error')
-        return redirect(url_for('identity_tag_admin.index'))
+        return redirect(request.referrer or url_for('identity_tag_admin.index'))
     if bonus_until < 0:
         flash('经验阈值不能小于 0', 'error')
-        return redirect(url_for('identity_tag_admin.index'))
+        return redirect(request.referrer or url_for('identity_tag_admin.index'))
 
     tag = IdentityTag(
         name=name,
@@ -78,7 +78,7 @@ def add():
     log_operation(current_user.id, 'identity_tag_add', 'identity_tag', tag.id, f'新增身份标签: {tag.name}')
     db.session.commit()
     flash('身份标签已新增', 'success')
-    return redirect(url_for('identity_tag_admin.index'))
+    return redirect(request.referrer or url_for('identity_tag_admin.index'))
 
 
 @identity_tag_admin_bp.route('/<int:tag_id>/edit', methods=['POST'])
@@ -95,21 +95,21 @@ def edit(tag_id):
 
     if not new_name:
         flash('标签名称不能为空', 'error')
-        return redirect(url_for('identity_tag_admin.index'))
+        return redirect(request.referrer or url_for('identity_tag_admin.index'))
     if len(new_name) > 50:
         flash('标签名称最长 50 个字符', 'error')
-        return redirect(url_for('identity_tag_admin.index'))
+        return redirect(request.referrer or url_for('identity_tag_admin.index'))
     if multiplier <= 0:
         flash('经验倍率必须大于 0', 'error')
-        return redirect(url_for('identity_tag_admin.index'))
+        return redirect(request.referrer or url_for('identity_tag_admin.index'))
     if bonus_until < 0:
         flash('经验阈值不能小于 0', 'error')
-        return redirect(url_for('identity_tag_admin.index'))
+        return redirect(request.referrer or url_for('identity_tag_admin.index'))
 
     duplicate = IdentityTag.query.filter(IdentityTag.name == new_name, IdentityTag.id != tag.id).first()
     if duplicate:
         flash('标签名称已存在', 'error')
-        return redirect(url_for('identity_tag_admin.index'))
+        return redirect(request.referrer or url_for('identity_tag_admin.index'))
 
     old_name = tag.name
     tag.name = new_name
@@ -142,7 +142,7 @@ def edit(tag_id):
     )
     db.session.commit()
     flash('身份标签已更新', 'success')
-    return redirect(url_for('identity_tag_admin.index'))
+    return redirect(request.referrer or url_for('identity_tag_admin.index'))
 
 
 @identity_tag_admin_bp.route('/<int:tag_id>/delete', methods=['POST'])
@@ -174,4 +174,4 @@ def delete(tag_id):
     )
     db.session.commit()
     flash(f'身份标签规则已删除，并已从 {affected_users} 个用户移除该标签', 'success')
-    return redirect(url_for('identity_tag_admin.index'))
+    return redirect(request.referrer or url_for('identity_tag_admin.index'))

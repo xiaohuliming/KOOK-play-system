@@ -147,7 +147,7 @@ def dispatch():
     """派单页面 (仅客服+)"""
     if not current_user.is_staff:
         flash('无权限', 'error')
-        return redirect(url_for('orders.index'))
+        return redirect(request.referrer or url_for('orders.index'))
 
     if request.method == 'POST':
         project_item_id = request.form.get('project_item_id', type=int)
@@ -230,7 +230,7 @@ def report(order_id):
     order = Order.query.get(order_id)
     if not order:
         flash('订单不存在或已删除', 'error')
-        return redirect(url_for('orders.index'))
+        return redirect(request.referrer or url_for('orders.index'))
 
     return _handle_report(order)
 
@@ -242,7 +242,7 @@ def report_by_no(order_no):
     order = Order.query.filter_by(order_no=order_no).first()
     if not order:
         flash('订单不存在或已删除', 'error')
-        return redirect(url_for('orders.index'))
+        return redirect(request.referrer or url_for('orders.index'))
 
     return _handle_report(order)
 
@@ -254,11 +254,11 @@ def confirm_by_no(order_no):
     order = Order.query.filter_by(order_no=order_no).first()
     if not order:
         flash('订单不存在或已删除', 'error')
-        return redirect(url_for('orders.index'))
+        return redirect(request.referrer or url_for('orders.index'))
 
     if order.boss_id != current_user.id and not current_user.is_staff:
         flash('无权限查看该订单', 'error')
-        return redirect(url_for('orders.index'))
+        return redirect(request.referrer or url_for('orders.index'))
 
     return render_template('orders/confirm.html', order=order)
 
@@ -267,16 +267,16 @@ def _handle_report(order):
     """申报处理逻辑：陪玩本人或客服及以上可操作"""
     if order.order_type in ('escort', 'training'):
         flash('护航/代肝订单无需报单，创建后已自动结算并冻结', 'info')
-        return redirect(url_for('orders.index'))
+        return redirect(request.referrer or url_for('orders.index'))
 
     can_report = (order.player_id == current_user.id) or current_user.is_staff
     if not can_report:
         flash('仅陪玩本人或客服及以上可申报该订单', 'error')
-        return redirect(url_for('orders.index'))
+        return redirect(request.referrer or url_for('orders.index'))
 
     if order.status not in ('pending_report', 'pending_confirm'):
         flash('该订单当前不可申报', 'error')
-        return redirect(url_for('orders.index'))
+        return redirect(request.referrer or url_for('orders.index'))
 
     if request.method == 'POST':
         was_pending_confirm = (order.status == 'pending_confirm')
@@ -300,7 +300,7 @@ def _handle_report(order):
             flash('申报已更新，冻结金额已同步调整，等待老板确认支付', 'success')
         else:
             flash('申报成功，已冻结老板余额，等待老板确认支付', 'success')
-        return redirect(url_for('orders.index'))
+        return redirect(request.referrer or url_for('orders.index'))
 
     return render_template('orders/report.html', order=order)
 
@@ -313,7 +313,7 @@ def confirm(order_id):
 
     if order.boss_id != current_user.id and not current_user.is_staff:
         flash('无权限确认该订单', 'error')
-        return redirect(url_for('orders.index'))
+        return redirect(request.referrer or url_for('orders.index'))
 
     success, error = order_service.confirm_order(order)
     if not success:
@@ -336,7 +336,7 @@ def order_action(order_id, action):
     if action == 'freeze':
         if not current_user.is_staff:
             flash('需要客服及以上权限', 'error')
-            return redirect(url_for('orders.index'))
+            return redirect(request.referrer or url_for('orders.index'))
         success, error = order_service.freeze_order(order)
         if success:
             db.session.commit()
@@ -347,7 +347,7 @@ def order_action(order_id, action):
     elif action == 'unfreeze':
         if not current_user.is_staff:
             flash('需要客服及以上权限', 'error')
-            return redirect(url_for('orders.index'))
+            return redirect(request.referrer or url_for('orders.index'))
         success, error = order_service.unfreeze_order(order)
         if success:
             db.session.commit()
@@ -364,7 +364,7 @@ def order_action(order_id, action):
     elif action == 'refund':
         if not current_user.is_staff:
             flash('退款操作需要客服及以上权限', 'error')
-            return redirect(url_for('orders.index'))
+            return redirect(request.referrer or url_for('orders.index'))
         notify_operator = current_user.staff_display_name
         success, error = order_service.refund_order(order)
         if success:
@@ -387,7 +387,7 @@ def delete(order_id):
     """删除订单: 客服/管理员"""
     if not current_user.is_staff:
         flash('需要客服及以上权限', 'error')
-        return redirect(url_for('orders.index'))
+        return redirect(request.referrer or url_for('orders.index'))
 
     order = Order.query.get_or_404(order_id)
     # 先缓存通知所需信息（订单删除后对象会失效）

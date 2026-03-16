@@ -87,16 +87,16 @@ def create():
 
     if not username:
         flash('账号不能为空', 'error')
-        return redirect(url_for('users.index'))
+        return redirect(request.referrer or url_for('users.index'))
 
     # 账号仅支持数字/字母
     if not username.isalnum():
         flash('账号仅支持数字和字母', 'error')
-        return redirect(url_for('users.index'))
+        return redirect(request.referrer or url_for('users.index'))
 
     if User.query.filter_by(username=username).first():
         flash('该账号已存在', 'error')
-        return redirect(url_for('users.index'))
+        return redirect(request.referrer or url_for('users.index'))
 
     # 客服只能创建 god / player；管理员可以额外创建 staff
     allowed_roles = ['god', 'player']
@@ -107,24 +107,24 @@ def create():
 
     if role not in allowed_roles:
         flash('无权创建该角色的用户', 'error')
-        return redirect(url_for('users.index'))
+        return redirect(request.referrer or url_for('users.index'))
 
     # 新增用户必须绑定 KOOK ID，并从 KOOK 拉取昵称
     if not kook_id:
         flash('新增用户必须填写 KOOK ID，并拉取 KOOK 用户名', 'error')
-        return redirect(url_for('users.index'))
+        return redirect(request.referrer or url_for('users.index'))
 
     # 检查 KOOK ID 是否已被使用
     if User.query.filter_by(kook_id=kook_id).first():
         flash('该 KOOK ID 已被其他用户绑定', 'error')
-        return redirect(url_for('users.index'))
+        return redirect(request.referrer or url_for('users.index'))
 
     # 必须通过 KOOK API 获取用户名和头像
     from app.services.kook_service import fetch_kook_user
     kook_username, kook_avatar, kook_error = fetch_kook_user(kook_id)
     if kook_error or not kook_username:
         flash(f'无法通过 KOOK ID 获取用户名: {kook_error or "未返回用户名"}', 'error')
-        return redirect(url_for('users.index'))
+        return redirect(request.referrer or url_for('users.index'))
 
     resolved_nickname = kook_username
 
@@ -151,7 +151,7 @@ def create():
                   f'手动新增用户: {username}, 角色: {new_user.role_name}')
 
     flash(f'用户 {resolved_nickname} 创建成功', 'success')
-    return redirect(url_for('users.index'))
+    return redirect(request.referrer or url_for('users.index'))
 
 
 @users_bp.route('/')
@@ -386,30 +386,30 @@ def adjust_balance(user_id):
         amount = Decimal(amount)
     except Exception:
         flash('无效的金额', 'error')
-        return redirect(url_for('users.detail', user_id=user_id, tab=target_tab))
+        return redirect(request.referrer or url_for('users.detail', user_id=user_id, tab=target_tab))
 
     if op_type == 'recharge':
         success, error = balance_service.manual_recharge(user, amount, reason, current_user.id)
     elif op_type == 'deduct':
         if not current_user.is_admin:
             flash('扣款操作需要管理员权限', 'error')
-            return redirect(url_for('users.detail', user_id=user_id, tab='balance'))
+            return redirect(request.referrer or url_for('users.detail', user_id=user_id, tab='balance'))
         success, error = balance_service.manual_deduct(user, amount, reason, current_user.id)
     elif op_type == 'gift':
         success, error = balance_service.manual_gift_balance(user, amount, reason, current_user.id)
     elif op_type == 'bean_add':
         if not current_user.is_superadmin:
             flash('增加小猪粮仅限高级管理员', 'error')
-            return redirect(url_for('users.detail', user_id=user_id, tab=target_tab))
+            return redirect(request.referrer or url_for('users.detail', user_id=user_id, tab=target_tab))
         success, error = balance_service.manual_add_bean(user, amount, reason, current_user.id)
     elif op_type == 'bean_deduct':
         if not current_user.is_superadmin:
             flash('扣减小猪粮仅限高级管理员', 'error')
-            return redirect(url_for('users.detail', user_id=user_id, tab=target_tab))
+            return redirect(request.referrer or url_for('users.detail', user_id=user_id, tab=target_tab))
         success, error = balance_service.manual_deduct_bean(user, amount, reason, current_user.id)
     else:
         flash('未知操作类型', 'error')
-        return redirect(url_for('users.detail', user_id=user_id, tab=target_tab))
+        return redirect(request.referrer or url_for('users.detail', user_id=user_id, tab=target_tab))
 
     if success:
         db.session.commit()
@@ -417,7 +417,7 @@ def adjust_balance(user_id):
     else:
         flash(error, 'error')
 
-    return redirect(url_for('users.detail', user_id=user_id, tab=target_tab))
+    return redirect(request.referrer or url_for('users.detail', user_id=user_id, tab=target_tab))
 
 
 @users_bp.route('/<int:user_id>/update_info', methods=['POST'])
@@ -431,7 +431,7 @@ def update_info(user_id):
     if action == 'reset_password':
         if not current_user.is_admin:
             flash('需要管理员权限', 'error')
-            return redirect(url_for('users.detail', user_id=user_id))
+            return redirect(request.referrer or url_for('users.detail', user_id=user_id))
         user.set_password('123456789')
         log_operation(current_user.id, 'user_password_reset', 'user', user.id, '重置密码为默认')
         db.session.commit()
@@ -440,7 +440,7 @@ def update_info(user_id):
     elif action == 'set_referrer':
         if not current_user.is_admin:
             flash('需要管理员权限', 'error')
-            return redirect(url_for('users.detail', user_id=user_id))
+            return redirect(request.referrer or url_for('users.detail', user_id=user_id))
         referrer_id = request.form.get('referrer_id', type=int)
         if referrer_id and referrer_id != user.id:
             user.referrer_id = referrer_id
@@ -450,12 +450,12 @@ def update_info(user_id):
     elif action == 'update_experience':
         if not current_user.is_admin:
             flash('需要管理员权限', 'error')
-            return redirect(url_for('users.detail', user_id=user_id))
+            return redirect(request.referrer or url_for('users.detail', user_id=user_id))
         exp = request.form.get('experience', type=int)
         if exp is not None:
             if exp < 0:
                 flash('经验值不能小于 0', 'error')
-                return redirect(url_for('users.detail', user_id=user_id))
+                return redirect(request.referrer or url_for('users.detail', user_id=user_id))
 
             from app.services.vip_service import sync_vip_level_by_experience
             old_exp = user.experience
@@ -479,18 +479,18 @@ def update_info(user_id):
     elif action == 'update_boss_discount':
         if not current_user.is_admin:
             flash('需要管理员权限', 'error')
-            return redirect(url_for('users.detail', user_id=user_id))
+            return redirect(request.referrer or url_for('users.detail', user_id=user_id))
 
         raw_discount = (request.form.get('boss_discount') or '').strip()
         try:
             new_discount = Decimal(raw_discount)
         except Exception:
             flash('折扣格式无效，请输入 1-100 的数字', 'error')
-            return redirect(url_for('users.detail', user_id=user_id, tab='info'))
+            return redirect(request.referrer or url_for('users.detail', user_id=user_id, tab='info'))
 
         if new_discount <= 0 or new_discount > 100:
             flash('折扣范围需在 1-100（100=无折扣，90=9折）', 'error')
-            return redirect(url_for('users.detail', user_id=user_id, tab='info'))
+            return redirect(request.referrer or url_for('users.detail', user_id=user_id, tab='info'))
 
         old_discount = Decimal(str(user.vip_discount or 100))
         user.vip_discount = new_discount.quantize(Decimal('0.01'))
@@ -554,13 +554,13 @@ def update_info(user_id):
             log_operation(current_user.id, 'user_update_birthday', 'user', user.id, '清空生日日期')
             db.session.commit()
             flash('生日已清空', 'success')
-            return redirect(url_for('users.detail', user_id=user_id, tab='info'))
+            return redirect(request.referrer or url_for('users.detail', user_id=user_id, tab='info'))
 
         try:
             parsed = _parse_birthday_input(raw_month, raw_day, raw_birthday)
         except ValueError as exc:
             flash(str(exc), 'error')
-            return redirect(url_for('users.detail', user_id=user_id, tab='info'))
+            return redirect(request.referrer or url_for('users.detail', user_id=user_id, tab='info'))
 
         old_birthday = _format_birthday_month_day(user.birthday)
         user.birthday = parsed
@@ -574,13 +574,13 @@ def update_info(user_id):
         )
         db.session.commit()
         flash('生日已更新', 'success')
-        return redirect(url_for('users.detail', user_id=user_id, tab='info'))
+        return redirect(request.referrer or url_for('users.detail', user_id=user_id, tab='info'))
 
     elif action == 'bind_wechat':
         # 简单模拟绑定/解绑
         if not current_user.is_staff:
              flash('无权限', 'error')
-             return redirect(url_for('users.detail', user_id=user_id))
+             return redirect(request.referrer or url_for('users.detail', user_id=user_id))
         
         is_bind = request.form.get('is_bind') == 'true'
         if is_bind and not user.wechat_bound:
@@ -599,7 +599,7 @@ def update_info(user_id):
     elif action == 'exchange_currency':
         if not current_user.is_admin:
             flash('需要管理员权限', 'error')
-            return redirect(url_for('users.detail', user_id=user_id))
+            return redirect(request.referrer or url_for('users.detail', user_id=user_id))
         
         # 小猪粮转嗯呢币 (佣金 -> 余额)
         amount = request.form.get('amount', type=float)
@@ -640,7 +640,7 @@ def update_info(user_id):
         else:
             flash('请输入有效金额', 'error')
 
-    return redirect(url_for('users.detail', user_id=user_id))
+    return redirect(request.referrer or url_for('users.detail', user_id=user_id))
 
 
 @users_bp.route('/<int:user_id>/intimacy/<int:intimacy_id>/update', methods=['POST'])
@@ -657,7 +657,7 @@ def update_intimacy(user_id, intimacy_id):
                       f'修改亲密度: {old_value} -> {new_value}')
         db.session.commit()
         flash('亲密度已更新', 'success')
-    return redirect(url_for('users.detail', user_id=user_id, tab='intimacy'))
+    return redirect(request.referrer or url_for('users.detail', user_id=user_id, tab='intimacy'))
 
 
 @users_bp.route('/<int:user_id>/intimacy/<int:intimacy_id>/delete', methods=['POST'])
@@ -671,7 +671,7 @@ def delete_intimacy(user_id, intimacy_id):
     db.session.delete(intimacy)
     db.session.commit()
     flash('亲密度已删除', 'success')
-    return redirect(url_for('users.detail', user_id=user_id, tab='intimacy'))
+    return redirect(request.referrer or url_for('users.detail', user_id=user_id, tab='intimacy'))
 
 
 def _sync_user_kook_profile(user, force_nickname=False, force_username=False):

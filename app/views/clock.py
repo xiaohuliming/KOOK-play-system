@@ -282,7 +282,7 @@ def clock_in():
 
     if existing:
         flash('您已经在打卡状态中，请先下班打卡', 'error')
-        return redirect(url_for('clock.index'))
+        return redirect(request.referrer or url_for('clock.index'))
 
     record = ClockRecord(
         user_id=current_user.id,
@@ -294,8 +294,8 @@ def clock_in():
 
     flash('上班打卡成功！', 'success')
     if current_user.is_admin:
-        return redirect(url_for('clock.index', mode='mine'))
-    return redirect(url_for('clock.index'))
+        return redirect(request.referrer or url_for('clock.index', mode='mine'))
+    return redirect(request.referrer or url_for('clock.index'))
 
 
 @clock_bp.route('/out', methods=['POST'])
@@ -313,8 +313,8 @@ def clock_out():
     if not record:
         flash('当前没有进行中的打卡记录', 'error')
         if current_user.is_admin:
-            return redirect(url_for('clock.index', mode='mine'))
-        return redirect(url_for('clock.index'))
+            return redirect(request.referrer or url_for('clock.index', mode='mine'))
+        return redirect(request.referrer or url_for('clock.index'))
 
     now = _utc_now()
     record.clock_out = now
@@ -324,5 +324,5 @@ def clock_out():
 
     flash(f'下班打卡成功！本次工时 {record.duration_display}', 'success')
     if current_user.is_admin:
-        return redirect(url_for('clock.index', mode='mine'))
-    return redirect(url_for('clock.index'))
+        return redirect(request.referrer or url_for('clock.index', mode='mine'))
+    return redirect(request.referrer or url_for('clock.index'))

@@ -64,17 +64,17 @@ def change_role(user_id):
     valid_roles = ['god', 'player', 'staff', 'admin', 'superadmin']
     if new_role not in valid_roles:
         flash('无效角色', 'error')
-        return redirect(url_for('account_admin.index'))
+        return redirect(request.referrer or url_for('account_admin.index'))
 
     # 只有高级管理员可以设管理员/高级管理员
     if new_role in ('admin', 'superadmin') and not current_user.is_superadmin:
         flash('只有高级管理员可以提升为管理员', 'error')
-        return redirect(url_for('account_admin.index'))
+        return redirect(request.referrer or url_for('account_admin.index'))
 
     # 不能修改自己
     if user.id == current_user.id:
         flash('不能修改自己的角色', 'error')
-        return redirect(url_for('account_admin.index'))
+        return redirect(request.referrer or url_for('account_admin.index'))
 
     old_role = user.role
     user.role = new_role
@@ -85,7 +85,7 @@ def change_role(user_id):
     db.session.commit()
 
     flash(f'已将 {user.nickname or user.username} 角色更改为 {new_role}', 'success')
-    return redirect(url_for('account_admin.index'))
+    return redirect(request.referrer or url_for('account_admin.index'))
 
 
 @account_admin_bp.route('/<int:user_id>/reset_password', methods=['POST'])
@@ -102,7 +102,7 @@ def reset_password(user_id):
     db.session.commit()
 
     flash(f'已重置 {user.nickname or user.username} 密码为 {default_password}', 'success')
-    return redirect(url_for('account_admin.index'))
+    return redirect(request.referrer or url_for('account_admin.index'))
 
 
 @account_admin_bp.route('/<int:user_id>/rename', methods=['POST'])
@@ -113,7 +113,7 @@ def rename(user_id):
     new_nickname = request.form.get('nickname', '').strip()
     if not new_nickname:
         flash('昵称不能为空', 'error')
-        return redirect(url_for('account_admin.index'))
+        return redirect(request.referrer or url_for('account_admin.index'))
 
     old_name = user.nickname
     user.nickname = new_nickname
@@ -124,7 +124,7 @@ def rename(user_id):
     db.session.commit()
 
     flash('昵称已修改', 'success')
-    return redirect(url_for('account_admin.index'))
+    return redirect(request.referrer or url_for('account_admin.index'))
 
 
 @account_admin_bp.route('/<int:user_id>/delete', methods=['POST'])
@@ -135,12 +135,12 @@ def delete_user(user_id):
 
     if user.id == current_user.id:
         flash('不能删除自己的账户', 'error')
-        return redirect(url_for('account_admin.index'))
+        return redirect(request.referrer or url_for('account_admin.index'))
 
     # 不允许删除高级管理员
     if user.is_superadmin:
         flash('不能删除高级管理员账户', 'error')
-        return redirect(url_for('account_admin.index'))
+        return redirect(request.referrer or url_for('account_admin.index'))
 
     name = user.nickname or user.username
     uid = user.id
@@ -193,7 +193,7 @@ def delete_user(user_id):
         db.session.rollback()
         flash(f'删除失败: {str(e)}', 'error')
 
-    return redirect(url_for('account_admin.index'))
+    return redirect(request.referrer or url_for('account_admin.index'))
 
 
 @account_admin_bp.route('/<int:user_id>/tags', methods=['POST'])

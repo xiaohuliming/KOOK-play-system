@@ -417,6 +417,62 @@
         }
       });
     }
+
+    // POST 操作后回到原位置：保留当前页参数并恢复滚动
+    function upsertHiddenInput(form, name, value) {
+      let input = form.querySelector(`input[name="${name}"]`);
+      if (!input) {
+        input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        form.appendChild(input);
+      }
+      input.value = value;
+    }
+
+    document.addEventListener('submit', function (e) {
+      const form = e.target;
+      if (!form || form.tagName !== 'FORM') return;
+      const method = (form.getAttribute('method') || 'get').toLowerCase();
+      if (method !== 'post') return;
+
+      const returnPage = window.location.pathname + window.location.search;
+      const scrollY = String(window.scrollY || window.pageYOffset || 0);
+      upsertHiddenInput(form, 'return_page', returnPage);
+      upsertHiddenInput(form, 'scroll_y', scrollY);
+
+      sessionStorage.setItem(`scroll:${returnPage}`, scrollY);
+      sessionStorage.setItem('scroll:last_post_at', String(Date.now()));
+    }, true);
+
+    (function restoreScrollPosition() {
+      const params = new URLSearchParams(window.location.search);
+      const explicitY = params.get('_scroll_y');
+      if (explicitY !== null) {
+        const y = Math.max(0, parseInt(explicitY, 10) || 0);
+        window.requestAnimationFrame(function () {
+          window.scrollTo(0, y);
+        });
+        params.delete('_scroll_y');
+        const newQuery = params.toString();
+        const newUrl = window.location.pathname + (newQuery ? `?${newQuery}` : '') + window.location.hash;
+        window.history.replaceState({}, '', newUrl);
+        return;
+      }
+
+      const key = `scroll:${window.location.pathname}${window.location.search}`;
+      const savedY = sessionStorage.getItem(key);
+      const lastPostAt = parseInt(sessionStorage.getItem('scroll:last_post_at') || '0', 10);
+      if (!savedY) return;
+      if (!lastPostAt || (Date.now() - lastPostAt) > 120000) {
+        sessionStorage.removeItem(key);
+        return;
+      }
+      window.requestAnimationFrame(function () {
+        window.scrollTo(0, Math.max(0, parseInt(savedY, 10) || 0));
+      });
+      sessionStorage.removeItem(key);
+    })();
   </script>
   {% block scripts %}{% endblock %}
 </body>
