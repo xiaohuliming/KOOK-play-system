@@ -13,6 +13,7 @@ from app.models.user import User
 from app.models.order import Order
 from app.models.gift import GiftOrder
 from app.models.finance import WithdrawRequest
+from app.services.assistant_queries import detect_and_query
 
 SILICONFLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions'
 SILICONFLOW_API_KEY = 'sk-obelmguwyjrhsifohvmryzgsknvmkaodwcclznhyqnyecqwi'
@@ -50,7 +51,9 @@ def _build_system_prompt(user):
 - 用中文简洁回复，善用emoji让回复更生动
 - 数据查询时给出准确数字
 - 如果问到你无法确定的数据，诚实说明
-- 不要编造数据"""
+- 不要编造数据
+
+重要: 你没有任何工具(tool)或函数调用(function call)能力。不要输出任何XML标签、tool_call或函数调用格式。所有需要的数据已在下方上下文中提供，直接基于这些数据用自然语言回答。"""
 
     # 按角色添加权限说明
     if user.is_admin or user.has_role('staff'):
@@ -108,22 +111,21 @@ def _get_platform_context(user):
     context_parts = []
 
     try:
-        # 管理员/客服: 可查看完整平台数据
+        # 管理员/客服: 基础概览数据（详细查询由意图系统处理）
         if user.is_admin or user.has_role('staff'):
             total_users = User.query.count()
             total_orders = Order.query.filter(Order.status == 'paid').count()
-            today_orders = Order.query.filter(
-                Order.status == 'paid',
+            today_count = Order.query.filter(
                 Order.created_at >= today_start
             ).count()
             pending_orders = Order.query.filter(Order.status.in_(['pending_report', 'pending_confirm'])).count()
             frozen_orders = Order.query.filter(Order.freeze_status == 'frozen', Order.status == 'paid').count()
             pending_withdraws = WithdrawRequest.query.filter_by(status='pending').count()
 
-            context_parts.append(f"""📊 平台实时数据:
+            context_parts.append(f"""📊 平台概览:
 - 总用户数: {total_users}
 - 已完成订单: {total_orders}
-- 今日订单: {today_orders}
+- 今日订单: {today_count}
 - 待处理订单: {pending_orders}
 - 冻结中订单: {frozen_orders}
 - 待审提现: {pending_withdraws}""")
@@ -161,6 +163,11 @@ def chat(user_message, conversation_history=None):
 
     system_prompt = _build_system_prompt(user)
     platform_context = _get_platform_context(user)
+
+    # 意图识别: 根据用户消息自动查询相关数据
+    query_results = detect_and_query(user, user_message)
+    if query_results:
+        platform_context += '\n' + query_results
 
     messages = [
         {'role': 'system', 'content': system_prompt + '\n\n' + platform_context}
