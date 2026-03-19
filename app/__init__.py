@@ -138,6 +138,14 @@ def create_app(config_class=Config, start_background_tasks=True):
     app.jinja_env.globals['fmt_dt'] = fmt_dt
     app.jinja_env.filters['bj'] = fmt_dt
 
+    # 启动时自动补齐数据库字段（避免新字段导致其他路由500）
+    with app.app_context():
+        try:
+            from app.views.gift_admin import _ensure_gift_sort_order_column
+            _ensure_gift_sort_order_column()
+        except Exception as e:
+            app.logger.warning(f'[Startup] 自动补齐字段失败: {e}')
+
     @app.context_processor
     def inject_top_notifications():
         if not current_user.is_authenticated:
