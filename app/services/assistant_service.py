@@ -114,19 +114,29 @@ def _get_platform_context(user):
 
     context_parts = []
 
-    try:
-        # 管理员/客服: 可查看完整平台数据
-        if user.is_admin or user.has_role('staff'):
+    def _order_line(o, extra_fields=''):
+        """安全格式化单条订单"""
+        try:
+            boss_name = (o.boss.nickname or o.boss.username) if o.boss else '未知'
+            player_name = (o.player.nickname or o.player.username) if o.player else '待分配'
+            project_name = o.project_item.name if o.project_item else '未知项目'
+            line = f'  · {o.order_no} | 老板:{boss_name} | 陪玩:{player_name} | 项目:{project_name} | 金额:{o.boss_pay}'
+            if extra_fields:
+                line += ' | ' + extra_fields
+            return line
+        except Exception:
+            return f'  · {o.order_no} | (详情加载失败)'
+
+    # ---- 管理员/客服: 完整平台数据 ----
+    if user.is_admin or user.has_role('staff'):
+        # 统计概览
+        try:
             total_users = User.query.count()
             total_orders = Order.query.filter(Order.status == 'paid').count()
-            today_orders_q = Order.query.filter(
-                Order.created_at >= today_start
-            ).all()
-            today_count = len(today_orders_q)
+            today_count = Order.query.filter(Order.created_at >= today_start).count()
             pending_orders = Order.query.filter(Order.status.in_(['pending_report', 'pending_confirm'])).count()
             frozen_orders = Order.query.filter(Order.freeze_status == 'frozen', Order.status == 'paid').count()
             pending_withdraws = WithdrawRequest.query.filter_by(status='pending').count()
-
             context_parts.append(f"""📊 平台实时数据:
 - 总用户数: {total_users}
 - 已完成订单: {total_orders}
@@ -134,52 +144,48 @@ def _get_platform_context(user):
 - 待处理订单: {pending_orders}
 - 冻结中订单: {frozen_orders}
 - 待审提现: {pending_withdraws}""")
+        except Exception as e:
+            current_app.logger.warning(f'[Assistant] 统计概览失败: {e}')
 
-            # 今日订单明细
+        # 今日订单明细
+        try:
+            today_orders_q = Order.query.filter(Order.created_at >= today_start).all()
             if today_orders_q:
-                details = []
-                for o in today_orders_q[:30]:
-                    boss_name = o.boss.nickname or o.boss.username if o.boss else '未知'
-                    player_name = (o.player.nickname or o.player.username) if o.player else '待分配'
-                    project_name = o.project_item.name if o.project_item else '未知项目'
-                    details.append(f'  · {o.order_no} | 老板:{boss_name} | 陪玩:{player_name} | 项目:{project_name} | 金额:{o.boss_pay} | 类型:{o.order_type} | 状态:{o.status}')
-                context_parts.append('📋 今日订单明细:\n' + '\n'.join(details))
+                lines = [_order_line(o, f'类型:{o.order_type} | 状态:{o.status}') for o in today_orders_q[:30]]
+                context_parts.append('📋 今日订单明细:\n' + '\n'.join(lines))
+        except Exception as e:
+            current_app.logger.warning(f'[Assistant] 今日订单明细失败: {e}')
 
-            # 冻结订单明细
-            frozen_orders_q = Order.query.filter(
-                Order.freeze_status == 'frozen', Order.status == 'paid'
-            ).all()
-            if frozen_orders_q:
-                details = []
-                for o in frozen_orders_q[:20]:
-                    boss_name = o.boss.nickname or o.boss.username if o.boss else '未知'
-                    player_name = (o.player.nickname or o.player.username) if o.player else '待分配'
-                    project_name = o.project_item.name if o.project_item else '未知项目'
+        # 冻结订单明细
+        try:
+            frozen_q = Order.query.filter(Order.freeze_status == 'frozen', Order.status == 'paid').all()
+            if frozen_q:
+                lines = []
+                for o in frozen_q[:20]:
                     created = o.created_at.strftime('%m-%d %H:%M') if o.created_at else ''
-                    details.append(f'  · {o.order_no} | 老板:{boss_name} | 陪玩:{player_name} | 项目:{project_name} | 金额:{o.boss_pay} | 类型:{o.order_type} | 创建时间:{created}')
-                context_parts.append('🧊 冻结中订单明细:\n' + '\n'.join(details))
+                    lines.append(_order_line(o, f'类型:{o.order_type} | 创建时间:{created}'))
+                context_parts.append('🧊 冻结中订单明细:\n' + '\n'.join(lines))
+        except Exception as e:
+            current_app.logger.warning(f'[Assistant] 冻结订单明细失败: {e}')
 
-            # 待处理订单明细
-            pending_orders_q = Order.query.filter(
-                Order.status.in_(['pending_report', 'pending_confirm'])
-            ).all()
-            if pending_orders_q:
-                details = []
-                for o in pending_orders_q[:20]:
-                    boss_name = o.boss.nickname or o.boss.username if o.boss else '未知'
-                    player_name = (o.player.nickname or o.player.username) if o.player else '待分配'
-                    project_name = o.project_item.name if o.project_item else '未知项目'
-                    details.append(f'  · {o.order_no} | 老板:{boss_name} | 陪玩:{player_name} | 项目:{project_name} | 金额:{o.boss_pay} | 状态:{o.status}')
-                context_parts.append('⏳ 待处理订单明细:\n' + '\n'.join(details))
+        # 待处理订单明细
+        try:
+            pending_q = Order.query.filter(Order.status.in_(['pending_report', 'pending_confirm'])).all()
+            if pending_q:
+                lines = [_order_line(o, f'状态:{o.status}') for o in pending_q[:20]]
+                context_parts.append('⏳ 待处理订单明细:\n' + '\n'.join(lines))
+        except Exception as e:
+            current_app.logger.warning(f'[Assistant] 待处理订单明细失败: {e}')
 
-            # 用户列表摘要（方便查询用户信息）
+        # 用户列表
+        try:
             all_users = User.query.order_by(User.id).all()
             if all_users:
                 user_lines = []
                 for u in all_users[:50]:
-                    role_str = u.role or ''
                     nick = u.nickname or u.username or '无昵称'
                     code = getattr(u, 'user_code', '') or ''
+                    role_str = u.role or ''
                     balance_info = ''
                     if u.is_god:
                         balance_info = f'嗯呢币:{u.m_coin} 赠金:{u.m_coin_gift}'
@@ -187,26 +193,31 @@ def _get_platform_context(user):
                         balance_info = f'小猪粮:{u.m_bean} 冻结:{u.m_bean_frozen}'
                     user_lines.append(f'  · ID:{u.id} | {nick} | 编号:{code} | 角色:{role_str} | {balance_info}')
                 context_parts.append('👥 用户列表:\n' + '\n'.join(user_lines))
+        except Exception as e:
+            current_app.logger.warning(f'[Assistant] 用户列表失败: {e}')
 
-        # 老板: 仅个人余额和订单数
-        if user.is_god:
+    # ---- 老板: 仅个人数据 ----
+    if user.is_god:
+        try:
             my_orders = Order.query.filter_by(boss_id=user.id, status='paid').count()
             context_parts.append(f"""💰 你的账户信息:
 - 嗯呢币: {user.m_coin}
 - 赠金: {user.m_coin_gift}
 - 历史订单数: {my_orders}""")
+        except Exception as e:
+            current_app.logger.warning(f'[Assistant] 老板数据失败: {e}')
 
-        # 陪玩: 仅个人收益和订单数
-        elif user.is_player:
+    # ---- 陪玩: 仅个人数据 ----
+    elif user.is_player:
+        try:
             my_orders = Order.query.filter_by(player_id=user.id, status='paid').count()
             context_parts.append(f"""💰 你的账户信息:
 - 小猪粮: {user.m_bean}
 - 冻结小猪粮: {user.m_bean_frozen}
 - 已完成订单数: {my_orders}""")
+        except Exception as e:
+            current_app.logger.warning(f'[Assistant] 陪玩数据失败: {e}')
 
-    except Exception as e:
-        current_app.logger.warning(f'[Assistant] 获取平台数据失败: {e}')
-        context_parts.append('(数据暂时无法获取)')
 
     return '\n'.join(context_parts)
 
