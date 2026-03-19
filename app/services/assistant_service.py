@@ -21,10 +21,25 @@ SILICONFLOW_MODEL = 'Pro/MiniMaxAI/MiniMax-M2.5'
 
 def _build_system_prompt(user):
     """构建包含平台上下文的系统提示词（按权限区分）"""
-    role_label = '老板' if user.is_god else ('陪玩' if user.is_player else ('客服' if user.has_role('staff') else ('管理员' if user.is_admin else '用户')))
+    # 角色检测顺序: 高级管理 > 管理 > 客服 > 老板 > 陪玩 > 用户
+    if user.is_superadmin:
+        role_label = '高级管理'
+    elif user.is_admin:
+        role_label = '管理员'
+    elif user.has_role('staff'):
+        role_label = '客服'
+    elif user.is_god:
+        role_label = '老板'
+    elif user.is_player:
+        role_label = '陪玩'
+    else:
+        role_label = '用户'
+
+    display_name = user.nickname or user.username
+    user_code = getattr(user, 'user_code', '') or ''
 
     base = f"""你是"助理小呢"，嗯呢呗电竞陪玩店的智能助理。你性格温柔可爱、专业靠谱。
-当前用户: {user.nickname or user.username} (角色: {role_label}, ID: {user.id})
+当前用户: {display_name} (角色: {role_label}, 编号: {user_code}, ID: {user.id})
 
 平台介绍:
 - 嗯呢呗电竞是一个基于KOOK的游戏陪玩店中控管理系统
