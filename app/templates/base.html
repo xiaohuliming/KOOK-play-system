@@ -435,36 +435,41 @@
       upsertHiddenInput(form, 'scroll_y', scrollY);
 
       sessionStorage.setItem(`scroll:${returnPage}`, scrollY);
+      sessionStorage.setItem(`scroll:path:${window.location.pathname}`, scrollY);
       sessionStorage.setItem('scroll:last_post_at', String(Date.now()));
     }, true);
 
     (function restoreScrollPosition() {
-      const params = new URLSearchParams(window.location.search);
-      const explicitY = params.get('_scroll_y');
+      var params = new URLSearchParams(window.location.search);
+      var explicitY = params.get('_scroll_y');
       if (explicitY !== null) {
-        const y = Math.max(0, parseInt(explicitY, 10) || 0);
+        var y = Math.max(0, parseInt(explicitY, 10) || 0);
         window.requestAnimationFrame(function () {
           window.scrollTo(0, y);
         });
         params.delete('_scroll_y');
-        const newQuery = params.toString();
-        const newUrl = window.location.pathname + (newQuery ? `?${newQuery}` : '') + window.location.hash;
+        var newQuery = params.toString();
+        var newUrl = window.location.pathname + (newQuery ? '?' + newQuery : '') + window.location.hash;
         window.history.replaceState({}, '', newUrl);
         return;
       }
 
-      const key = `scroll:${window.location.pathname}${window.location.search}`;
-      const savedY = sessionStorage.getItem(key);
-      const lastPostAt = parseInt(sessionStorage.getItem('scroll:last_post_at') || '0', 10);
-      if (!savedY) return;
+      var lastPostAt = parseInt(sessionStorage.getItem('scroll:last_post_at') || '0', 10);
       if (!lastPostAt || (Date.now() - lastPostAt) > 120000) {
-        sessionStorage.removeItem(key);
         return;
       }
+
+      // 先尝试精确 URL 匹配，再尝试 pathname 匹配
+      var exactKey = 'scroll:' + window.location.pathname + window.location.search;
+      var pathKey = 'scroll:path:' + window.location.pathname;
+      var savedY = sessionStorage.getItem(exactKey) || sessionStorage.getItem(pathKey);
+      if (!savedY) return;
+
       window.requestAnimationFrame(function () {
         window.scrollTo(0, Math.max(0, parseInt(savedY, 10) || 0));
       });
-      sessionStorage.removeItem(key);
+      sessionStorage.removeItem(exactKey);
+      sessionStorage.removeItem(pathKey);
     })();
   </script>
   {% block scripts %}{% endblock %}
