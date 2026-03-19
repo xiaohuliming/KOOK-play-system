@@ -408,6 +408,57 @@ def _async_send(func, *args):
     t.start()
 
 
+def grant_kook_role(user, role_id):
+    """
+    给用户授予 KOOK 服务器角色。
+    user: User 对象（需有 kook_id）
+    role_id: KOOK 角色 ID (字符串)
+    """
+    if not role_id or not user:
+        return
+    kook_id = getattr(user, 'kook_id', None)
+    if not kook_id:
+        logger.warning('[KOOK] 用户 %s 无 kook_id，跳过角色授予', user.id)
+        return
+    if not _get_token() or _get_token() == 'your-kook-bot-token':
+        logger.warning('[KOOK] Token 未配置，跳过角色授予')
+        return
+
+    try:
+        guilds, err = _fetch_all_guilds()
+        if err or not guilds:
+            logger.warning('[KOOK] 获取服务器列表失败，跳过角色授予: %s', err)
+            return
+
+        for guild in guilds:
+            guild_id = guild.get('id')
+            if not guild_id:
+                continue
+            try:
+                resp = requests.post(
+                    f'{KOOK_API_BASE}/guild-role/grant',
+                    headers=_headers(),
+                    json={
+                        'guild_id': str(guild_id),
+                        'user_id': str(kook_id),
+                        'role_id': int(role_id),
+                    },
+                    timeout=10,
+                )
+                data = resp.json()
+                if data.get('code') == 0:
+                    logger.info('[KOOK] 角色授予成功: user=%s role=%s guild=%s', kook_id, role_id, guild_id)
+                    return  # 成功一次即可
+                else:
+                    logger.debug('[KOOK] 角色授予失败(guild=%s): %s', guild_id, data.get('message', ''))
+            except Exception as e:
+                logger.debug('[KOOK] 角色授予异常(guild=%s): %s', guild_id, e)
+
+        logger.warning('[KOOK] 角色授予: 所有服务器均失败 user=%s role=%s', kook_id, role_id)
+    except Exception as e:
+        logger.error('[KOOK] grant_kook_role 异常: %s', e)
+
+
 def send_direct_message(user_kook_id, content):
     """
     通用发送私信接口

@@ -124,6 +124,16 @@ def send_gift(boss, player, gift, quantity, staff=None):
     except Exception:
         pass
 
+    # KOOK 角色自动授予（礼物配置了角色时）
+    try:
+        from app.services.kook_service import grant_kook_role, _async_send
+        if gift.sender_kook_role_id:
+            _async_send(grant_kook_role, boss, gift.sender_kook_role_id)
+        if gift.receiver_kook_role_id:
+            _async_send(grant_kook_role, player, gift.receiver_kook_role_id)
+    except Exception:
+        pass
+
     # 客服提成仅用于平台绩效统计，不写入客服余额。
 
     # 操作日志

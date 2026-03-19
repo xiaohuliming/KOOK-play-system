@@ -30,6 +30,7 @@
             <th class="pb-3 font-medium">类型</th>
             <th class="pb-3 font-medium">状态</th>
             <th class="pb-3 font-medium">播报模板</th>
+            <th class="pb-3 font-medium">KOOK角色</th>
             <th class="pb-3 font-medium text-right">操作</th>
           </tr>
         </thead>
@@ -83,6 +84,24 @@
               未设置
               {% endif %}
             </td>
+            <td class="py-3 text-xs">
+              {% if gift.sender_kook_role_id or gift.receiver_kook_role_id %}
+                {% if gift.sender_kook_role_id %}
+                <div class="flex items-center gap-1 text-purple-600 dark:text-purple-400">
+                  <i data-lucide="shield" width="12" height="12"></i>
+                  <span>送: {{ gift.sender_kook_role_id }}</span>
+                </div>
+                {% endif %}
+                {% if gift.receiver_kook_role_id %}
+                <div class="flex items-center gap-1 text-pink-600 dark:text-pink-400 mt-0.5">
+                  <i data-lucide="shield" width="12" height="12"></i>
+                  <span>收: {{ gift.receiver_kook_role_id }}</span>
+                </div>
+                {% endif %}
+              {% else %}
+              <span class="text-slate-400">未设置</span>
+              {% endif %}
+            </td>
             <td class="py-3 text-right">
               <div class="flex justify-end gap-2">
                 <a href="{{ url_for('gift_admin.edit', gift_id=gift.id) }}" class="text-purple-500 hover:text-purple-600 text-xs font-medium px-2 py-1 rounded hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors">编辑</a>
@@ -94,7 +113,7 @@
             </td>
           </tr>
           {% else %}
-          <tr><td colspan="8" class="py-8 text-center text-slate-500">暂无礼物数据</td></tr>
+          <tr><td colspan="9" class="py-8 text-center text-slate-500">暂无礼物数据</td></tr>
           {% endfor %}
         </tbody>
       </table>

@@ -15,6 +15,18 @@ from app.services import upload_service
 gift_admin_bp = Blueprint('gift_admin', __name__)
 
 
+def _get_kook_roles():
+    """安全获取 KOOK 角色列表，失败时返回空列表"""
+    try:
+        from app.services.kook_service import fetch_kook_role_catalog
+        result, err = fetch_kook_role_catalog()
+        if err or not result:
+            return []
+        return result.get('roles', [])
+    except Exception:
+        return []
+
+
 def allowed_image(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
@@ -56,6 +68,22 @@ def _ensure_gift_sort_order_column():
         except Exception as e:
             db.session.rollback()
             return False, f'补齐 gifts.crown_broadcast_template 字段失败: {e}'
+
+    if 'sender_kook_role_id' not in cols:
+        try:
+            db.session.execute(text('ALTER TABLE gifts ADD COLUMN sender_kook_role_id VARCHAR(50) NULL'))
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            return False, f'补齐 gifts.sender_kook_role_id 字段失败: {e}'
+
+    if 'receiver_kook_role_id' not in cols:
+        try:
+            db.session.execute(text('ALTER TABLE gifts ADD COLUMN receiver_kook_role_id VARCHAR(50) NULL'))
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            return False, f'补齐 gifts.receiver_kook_role_id 字段失败: {e}'
 
     return True, None
 
@@ -117,6 +145,8 @@ def add():
                 name=name, price=price, gift_type=gift_type,
                 status=status, image=image_path,
                 sort_order=1,
+                sender_kook_role_id=request.form.get('sender_kook_role_id', '').strip() or None,
+                receiver_kook_role_id=request.form.get('receiver_kook_role_id', '').strip() or None,
             )
             db.session.add(gift)
             db.session.commit()
@@ -128,7 +158,7 @@ def add():
         flash(f'礼物 "{name}" 添加成功', 'success')
         return redirect(request.referrer or url_for('gift_admin.index'))
 
-    return render_template('admin/gift_form.html', gift=None)
+    return render_template('admin/gift_form.html', gift=None, kook_roles=_get_kook_roles())
 
 
 @gift_admin_bp.route('/<int:gift_id>/edit', methods=['GET', 'POST'])
@@ -166,11 +196,14 @@ def edit(gift_id):
         if image_path:
             gift.image = image_path
 
+        gift.sender_kook_role_id = request.form.get('sender_kook_role_id', '').strip() or None
+        gift.receiver_kook_role_id = request.form.get('receiver_kook_role_id', '').strip() or None
+
         db.session.commit()
         flash(f'礼物 "{gift.name}" 已更新', 'success')
         return redirect(request.referrer or url_for('gift_admin.index'))
 
-    return render_template('admin/gift_form.html', gift=gift)
+    return render_template('admin/gift_form.html', gift=gift, kook_roles=_get_kook_roles())
 
 
 @gift_admin_bp.route('/<int:gift_id>/broadcast', methods=['POST'])
