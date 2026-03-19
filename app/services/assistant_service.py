@@ -133,12 +133,39 @@ def _get_platform_context(user):
             # 今日订单明细
             if today_orders_q:
                 details = []
-                for o in today_orders_q[:30]:  # 最多30条
+                for o in today_orders_q[:30]:
+                    boss_name = o.boss.nickname or o.boss.username if o.boss else '未知'
+                    player_name = (o.player.nickname or o.player.username) if o.player else '待分配'
+                    project_name = o.project_item.name if o.project_item else '未知项目'
+                    details.append(f'  · {o.order_no} | 老板:{boss_name} | 陪玩:{player_name} | 项目:{project_name} | 金额:{o.boss_pay} | 类型:{o.order_type} | 状态:{o.status}')
+                context_parts.append('📋 今日订单明细:\n' + '\n'.join(details))
+
+            # 冻结订单明细
+            frozen_orders_q = Order.query.filter(
+                Order.freeze_status == 'frozen', Order.status == 'paid'
+            ).all()
+            if frozen_orders_q:
+                details = []
+                for o in frozen_orders_q[:20]:
+                    boss_name = o.boss.nickname or o.boss.username if o.boss else '未知'
+                    player_name = (o.player.nickname or o.player.username) if o.player else '待分配'
+                    project_name = o.project_item.name if o.project_item else '未知项目'
+                    created = o.created_at.strftime('%m-%d %H:%M') if o.created_at else ''
+                    details.append(f'  · {o.order_no} | 老板:{boss_name} | 陪玩:{player_name} | 项目:{project_name} | 金额:{o.boss_pay} | 类型:{o.order_type} | 创建时间:{created}')
+                context_parts.append('🧊 冻结中订单明细:\n' + '\n'.join(details))
+
+            # 待处理订单明细
+            pending_orders_q = Order.query.filter(
+                Order.status.in_(['pending_report', 'pending_confirm'])
+            ).all()
+            if pending_orders_q:
+                details = []
+                for o in pending_orders_q[:20]:
                     boss_name = o.boss.nickname or o.boss.username if o.boss else '未知'
                     player_name = (o.player.nickname or o.player.username) if o.player else '待分配'
                     project_name = o.project_item.name if o.project_item else '未知项目'
                     details.append(f'  · {o.order_no} | 老板:{boss_name} | 陪玩:{player_name} | 项目:{project_name} | 金额:{o.boss_pay} | 状态:{o.status}')
-                context_parts.append('📋 今日订单明细:\n' + '\n'.join(details))
+                context_parts.append('⏳ 待处理订单明细:\n' + '\n'.join(details))
 
         # 老板: 仅个人余额和订单数
         if user.is_god:
