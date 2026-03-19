@@ -13,7 +13,6 @@ from app.models.user import User
 from app.models.order import Order
 from app.models.gift import GiftOrder
 from app.models.finance import WithdrawRequest
-from app.services.assistant_queries import detect_and_query
 
 SILICONFLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions'
 SILICONFLOW_API_KEY = 'sk-obelmguwyjrhsifohvmryzgsknvmkaodwcclznhyqnyecqwi'
@@ -53,13 +52,7 @@ def _build_system_prompt(user):
 - 如果问到你无法确定的数据，诚实说明
 - 不要编造数据
 
-重要: 你没有任何工具(tool)或函数调用(function call)能力。不要输出任何XML标签、tool_call或函数调用格式。所有需要的数据已在下方上下文中提供，直接基于这些数据用自然语言回答。
-
-严格禁止输出以下格式:
-- <minimax:tool_call> 或任何类似的XML标签
-- <invoke> 或 <parameter> 标签
-- 任何 tool_call、function_call 格式
-你的回复必须是纯自然语言文本，不包含任何XML或代码调用格式。如果上下文中没有相关数据，就直接说"这个信息我暂时无法查到"。"""
+重要: 你没有任何工具(tool)或函数调用(function call)能力。不要输出任何XML标签、tool_call或函数调用格式。所有需要的数据已在下方上下文中提供，直接基于这些数据用自然语言回答。"""
 
     # 按角色添加权限说明
     if user.is_admin or user.has_role('staff'):
@@ -117,24 +110,35 @@ def _get_platform_context(user):
     context_parts = []
 
     try:
-        # 管理员/客服: 基础概览数据（详细查询由意图系统处理）
+        # 管理员/客服: 可查看完整平台数据
         if user.is_admin or user.has_role('staff'):
             total_users = User.query.count()
             total_orders = Order.query.filter(Order.status == 'paid').count()
-            today_count = Order.query.filter(
+            today_orders_q = Order.query.filter(
                 Order.created_at >= today_start
-            ).count()
+            ).all()
+            today_count = len(today_orders_q)
             pending_orders = Order.query.filter(Order.status.in_(['pending_report', 'pending_confirm'])).count()
             frozen_orders = Order.query.filter(Order.freeze_status == 'frozen', Order.status == 'paid').count()
             pending_withdraws = WithdrawRequest.query.filter_by(status='pending').count()
 
-            context_parts.append(f"""📊 平台概览:
+            context_parts.append(f"""📊 平台实时数据:
 - 总用户数: {total_users}
 - 已完成订单: {total_orders}
 - 今日订单: {today_count}
 - 待处理订单: {pending_orders}
 - 冻结中订单: {frozen_orders}
 - 待审提现: {pending_withdraws}""")
+
+            # 今日订单明细
+            if today_orders_q:
+                details = []
+                for o in today_orders_q[:30]:  # 最多30条
+                    boss_name = o.boss.nickname or o.boss.username if o.boss else '未知'
+                    player_name = (o.player.nickname or o.player.username) if o.player else '待分配'
+                    project_name = o.project_item.name if o.project_item else '未知项目'
+                    details.append(f'  · {o.order_no} | 老板:{boss_name} | 陪玩:{player_name} | 项目:{project_name} | 金额:{o.boss_pay} | 状态:{o.status}')
+                context_parts.append('📋 今日订单明细:\n' + '\n'.join(details))
 
         # 老板: 仅个人余额和订单数
         if user.is_god:
@@ -170,11 +174,6 @@ def chat(user_message, conversation_history=None):
     system_prompt = _build_system_prompt(user)
     platform_context = _get_platform_context(user)
 
-    # 意图识别: 根据用户消息自动查询相关数据
-    query_results = detect_and_query(user, user_message)
-    if query_results:
-        platform_context += '\n' + query_results
-
     messages = [
         {'role': 'system', 'content': system_prompt + '\n\n' + platform_context}
     ]
@@ -208,19 +207,7 @@ def chat(user_message, conversation_history=None):
 
         data = resp.json()
         reply = data['choices'][0]['message']['content']
-
-        # 后处理: 去除模型可能输出的 XML tool_call 标签
-        import re
-        reply = re.sub(r'</?minimax:[^>]*>', '', reply)
-        reply = re.sub(r'</?invoke[^>]*>', '', reply)
-        reply = re.sub(r'</?parameter[^>]*>', '', reply)
-        reply = re.sub(r'</?tool_call[^>]*>', '', reply)
-        reply = reply.strip()
-
-        if not reply:
-            reply = '让我看看... 这个信息我暂时无法查到，请换个方式问问我哦~'
-
-        return True, reply, None
+        return True, reply.strip(), None
 
     except requests.Timeout:
         return False, None, '请求超时，请稍后重试 ⏳'
