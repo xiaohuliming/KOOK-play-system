@@ -449,6 +449,59 @@
     </main>
   </div>
 
+  {% if current_user.is_authenticated %}
+  <!-- 助理小呢 浮动按钮 -->
+  <button id="assistant-fab" onclick="toggleAssistantPanel()" class="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 shadow-lg shadow-purple-500/30 hover:shadow-xl hover:shadow-purple-500/40 hover:scale-110 transition-all duration-300 flex items-center justify-center group" title="助理小呢">
+    <img src="{{ url_for('static', filename='img/site-logo.png') }}" alt="助理小呢" class="w-9 h-9 rounded-full border-2 border-white/80 group-hover:border-white transition-colors">
+    <span class="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white animate-pulse"></span>
+  </button>
+
+  <!-- 助理小呢 聊天面板 -->
+  <div id="assistant-panel" class="fixed bottom-24 right-6 z-50 w-[380px] max-w-[calc(100vw-2rem)] hidden" style="max-height:min(600px,75vh);">
+    <div class="flex flex-col h-full rounded-3xl overflow-hidden" style="background:rgba(255,255,255,0.85);backdrop-filter:blur(40px);-webkit-backdrop-filter:blur(40px);border:1px solid rgba(255,255,255,0.7);box-shadow:0 25px 50px -12px rgba(0,0,0,0.15);">
+
+      <!-- 头部 -->
+      <div class="flex items-center gap-3 px-5 py-4 border-b border-slate-200/50 dark:border-slate-700/50 flex-shrink-0" style="background:linear-gradient(135deg,rgba(139,92,246,0.1),rgba(99,102,241,0.08));">
+        <div class="relative">
+          <img src="{{ url_for('static', filename='img/site-logo.png') }}" class="w-10 h-10 rounded-full border-2 border-purple-200 shadow-sm">
+          <span class="absolute bottom-0 right-0 w-3 h-3 bg-green-400 rounded-full border-2 border-white"></span>
+        </div>
+        <div class="flex-1">
+          <h3 class="font-semibold text-slate-800 dark:text-white text-[15px]">助理小呢</h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400">在线 · 嗯呢呗电竞智能助理</p>
+        </div>
+        <button onclick="clearAssistantHistory()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-200/60 text-slate-400 hover:text-slate-600 transition-colors" title="清除对话">
+          <i data-lucide="trash-2" width="16" height="16"></i>
+        </button>
+        <button onclick="toggleAssistantPanel()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-200/60 text-slate-400 hover:text-slate-600 transition-colors">
+          <i data-lucide="minus" width="16" height="16"></i>
+        </button>
+      </div>
+
+      <!-- 消息区 -->
+      <div id="assistant-messages" class="flex-1 overflow-y-auto px-4 py-4 space-y-4 custom-scrollbar" style="max-height:min(420px,55vh);">
+        <!-- 欢迎消息 -->
+        <div class="flex gap-2.5 items-start">
+          <img src="{{ url_for('static', filename='img/site-logo.png') }}" class="w-7 h-7 rounded-full border border-purple-200 flex-shrink-0 mt-0.5">
+          <div class="bg-white dark:bg-slate-800 rounded-2xl rounded-tl-md px-4 py-2.5 max-w-[85%] shadow-sm border border-slate-100 dark:border-slate-700">
+            <p class="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">你好呀~ 我是<b>助理小呢</b> 🎮✨<br>有什么可以帮你的吗？可以问我订单、余额、平台数据等问题哦~</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 输入区 -->
+      <div class="px-4 py-3 border-t border-slate-200/50 dark:border-slate-700/50 flex-shrink-0">
+        <form id="assistant-form" onsubmit="sendAssistantMessage(event)" class="flex gap-2">
+          <input id="assistant-input" type="text" placeholder="输入消息..." autocomplete="off" class="flex-1 px-4 py-2.5 bg-slate-100/80 dark:bg-slate-800/80 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-purple-400/30 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 border border-slate-200/50 dark:border-slate-700/50">
+          <button type="submit" id="assistant-send-btn" class="w-10 h-10 flex items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 text-white hover:shadow-lg hover:shadow-purple-500/30 transition-all flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+            <i data-lucide="send" width="16" height="16"></i>
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
   <!-- Scripts -->
   <script>
     // 初始化 Lucide Icons
@@ -614,6 +667,155 @@
       });
       sessionStorage.removeItem(exactKey);
       sessionStorage.removeItem(pathKey);
+    })();
+  </script>
+
+  <!-- 助理小呢 JS -->
+  <script>
+    var assistantHistory = JSON.parse(sessionStorage.getItem('assistant_history') || '[]');
+    var assistantBusy = false;
+    var ASSISTANT_LOGO = document.getElementById('assistant-fab') ? document.getElementById('assistant-fab').querySelector('img').src : '';
+
+    function toggleAssistantPanel() {
+      var panel = document.getElementById('assistant-panel');
+      if (!panel) return;
+      var isHidden = panel.classList.contains('hidden');
+      panel.classList.toggle('hidden');
+      if (isHidden) {
+        lucide.createIcons();
+        var input = document.getElementById('assistant-input');
+        if (input) setTimeout(function(){ input.focus(); }, 100);
+        scrollAssistantToBottom();
+      }
+    }
+
+    function scrollAssistantToBottom() {
+      var box = document.getElementById('assistant-messages');
+      if (box) requestAnimationFrame(function(){ box.scrollTop = box.scrollHeight; });
+    }
+
+    function appendAssistantMsg(role, text) {
+      var box = document.getElementById('assistant-messages');
+      if (!box) return;
+      var div = document.createElement('div');
+
+      if (role === 'user') {
+        div.className = 'flex gap-2.5 items-start justify-end';
+        div.innerHTML = '<div class="bg-gradient-to-br from-purple-500 to-indigo-600 text-white rounded-2xl rounded-tr-md px-4 py-2.5 max-w-[85%] shadow-sm"><p class="text-sm leading-relaxed">' + escapeHtml(text) + '</p></div>';
+      } else {
+        div.className = 'flex gap-2.5 items-start';
+        div.innerHTML = '<img src="' + ASSISTANT_LOGO + '" class="w-7 h-7 rounded-full border border-purple-200 flex-shrink-0 mt-0.5"><div class="bg-white dark:bg-slate-800 rounded-2xl rounded-tl-md px-4 py-2.5 max-w-[85%] shadow-sm border border-slate-100 dark:border-slate-700"><div class="text-sm text-slate-700 dark:text-slate-200 leading-relaxed assistant-reply">' + formatReply(text) + '</div></div>';
+      }
+      box.appendChild(div);
+      scrollAssistantToBottom();
+      return div;
+    }
+
+    function showTypingIndicator() {
+      var box = document.getElementById('assistant-messages');
+      if (!box) return null;
+      var div = document.createElement('div');
+      div.className = 'flex gap-2.5 items-start';
+      div.id = 'typing-indicator';
+      div.innerHTML = '<img src="' + ASSISTANT_LOGO + '" class="w-7 h-7 rounded-full border border-purple-200 flex-shrink-0 mt-0.5"><div class="bg-white dark:bg-slate-800 rounded-2xl rounded-tl-md px-4 py-3 shadow-sm border border-slate-100 dark:border-slate-700"><div class="flex gap-1"><span class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay:0s"></span><span class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay:0.15s"></span><span class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay:0.3s"></span></div></div>';
+      box.appendChild(div);
+      scrollAssistantToBottom();
+      return div;
+    }
+
+    function removeTypingIndicator() {
+      var el = document.getElementById('typing-indicator');
+      if (el) el.remove();
+    }
+
+    function escapeHtml(text) {
+      var d = document.createElement('div');
+      d.textContent = text;
+      return d.innerHTML;
+    }
+
+    function formatReply(text) {
+      // 简单 markdown: **bold**, \n→<br>
+      return escapeHtml(text)
+        .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+        .replace(/\n/g, '<br>');
+    }
+
+    function sendAssistantMessage(e) {
+      e.preventDefault();
+      if (assistantBusy) return;
+      var input = document.getElementById('assistant-input');
+      var msg = (input.value || '').trim();
+      if (!msg) return;
+
+      input.value = '';
+      appendAssistantMsg('user', msg);
+      assistantHistory.push({role: 'user', content: msg});
+
+      assistantBusy = true;
+      document.getElementById('assistant-send-btn').disabled = true;
+      showTypingIndicator();
+
+      fetch('/assistant/chat', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({message: msg, history: assistantHistory.slice(-20)})
+      })
+      .then(function(r){ return r.json(); })
+      .then(function(data) {
+        removeTypingIndicator();
+        if (data.ok) {
+          appendAssistantMsg('assistant', data.reply);
+          assistantHistory.push({role: 'assistant', content: data.reply});
+          sessionStorage.setItem('assistant_history', JSON.stringify(assistantHistory.slice(-20)));
+        } else {
+          appendAssistantMsg('assistant', data.error || '出了点问题，请稍后再试~');
+        }
+      })
+      .catch(function() {
+        removeTypingIndicator();
+        appendAssistantMsg('assistant', '网络异常，请检查网络后重试 😢');
+      })
+      .finally(function() {
+        assistantBusy = false;
+        updateSendBtn();
+      });
+    }
+
+    function clearAssistantHistory() {
+      assistantHistory = [];
+      sessionStorage.removeItem('assistant_history');
+      var box = document.getElementById('assistant-messages');
+      if (box) {
+        box.innerHTML = '';
+        appendAssistantMsg('assistant', '对话已清除~ 有什么新问题随时问我哦 🎮✨');
+      }
+    }
+
+    function updateSendBtn() {
+      var btn = document.getElementById('assistant-send-btn');
+      var input = document.getElementById('assistant-input');
+      if (btn && input) btn.disabled = !input.value.trim() || assistantBusy;
+    }
+
+    // 初始化
+    (function initAssistant() {
+      var input = document.getElementById('assistant-input');
+      if (input) {
+        input.addEventListener('input', updateSendBtn);
+        input.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            document.getElementById('assistant-form').dispatchEvent(new Event('submit'));
+          }
+        });
+      }
+      // 恢复历史消息
+      if (assistantHistory.length > 0) {
+        for (var i = 0; i < assistantHistory.length; i++) {
+          appendAssistantMsg(assistantHistory[i].role, assistantHistory[i].content);
+        }
+      }
     })();
   </script>
   {% block scripts %}{% endblock %}

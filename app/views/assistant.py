@@ -1,0 +1,32 @@
+"""
+AI 助理小呢 — API 路由
+"""
+from flask import Blueprint, request, jsonify
+from flask_login import login_required, current_user
+
+from app.services.assistant_service import chat
+
+assistant_bp = Blueprint('assistant', __name__)
+
+
+@assistant_bp.route('/chat', methods=['POST'])
+@login_required
+def chat_api():
+    """POST /assistant/chat — 与助理小呢对话"""
+    data = request.get_json(silent=True)
+    if not data or not data.get('message', '').strip():
+        return jsonify({'ok': False, 'error': '消息不能为空'}), 400
+
+    user_message = data['message'].strip()
+    history = data.get('history', [])
+
+    # 简单限长保护
+    if len(user_message) > 2000:
+        return jsonify({'ok': False, 'error': '消息太长啦，请精简一下 😅'}), 400
+
+    ok, reply, err = chat(user_message, conversation_history=history)
+
+    if ok:
+        return jsonify({'ok': True, 'reply': reply})
+    else:
+        return jsonify({'ok': False, 'error': err}), 500

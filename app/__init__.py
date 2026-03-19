@@ -118,6 +118,9 @@ def create_app(config_class=Config, start_background_tasks=True):
     from app.views.lottery_admin import lottery_admin_bp
     app.register_blueprint(lottery_admin_bp, url_prefix='/admin/lottery')
 
+    from app.views.assistant import assistant_bp
+    app.register_blueprint(assistant_bp, url_prefix='/assistant')
+
     # Register permission helpers as template globals
     from app.utils import permissions as perm
     from app.utils.time_utils import fmt_dt
