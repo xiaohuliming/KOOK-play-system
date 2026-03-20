@@ -668,6 +668,10 @@ def refund_order(order):
     # 退老板（原路退回嗯呢币/赠金）
     refund_coin = _quantize_money(order.boss_hold_coin)
     refund_gift = _quantize_money(order.boss_hold_gift)
+    # 兜底：如果拆分记录为0但订单有金额（历史数据/未走confirm路径），全部退到嗯呢币
+    if refund_coin + refund_gift <= 0 and _quantize_money(order.total_price) > 0:
+        refund_coin = _quantize_money(order.total_price)
+        refund_gift = Decimal('0')
     refund_boss_balance(boss, order.total_price, order.order_no,
                         refund_coin=refund_coin, refund_gift=refund_gift)
 
