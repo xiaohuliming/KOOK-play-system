@@ -406,7 +406,7 @@ def withdraw_list():
             keyword_filters.append(WithdrawRequest.id == int(keyword))
         query = query.join(WithdrawRequest.user).filter(or_(*keyword_filters))
         
-    withdrawals = query.order_by(WithdrawRequest.created_at.desc()).paginate(page=request.args.get('page', 1, type=int), per_page=20)
+    withdrawals = query.order_by(WithdrawRequest.created_at.desc()).paginate(page=request.args.get('page', 1, type=int), per_page=20, error_out=False)
     
     stats = {
         'total_withdraw_amount': total_withdraw_amount,
