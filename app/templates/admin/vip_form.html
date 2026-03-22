@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block header_title %}{{ '编辑' if level else '新增' }}VIP等级{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto space-y-6">
+
+  <div class="flex items-center gap-3">
+    <a href="{{ url_for('vip_admin.index') }}" class="p-2 rounded-xl bg-white/40 dark:bg-slate-800/40 border border-white/60 dark:border-slate-700/50 hover:bg-white/60 dark:hover:bg-slate-800/60 transition-colors">
+      <i data-lucide="arrow-left" width="18" height="18" class="text-slate-500"></i>
+    </a>
+    <h2 class="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+      <i data-lucide="crown" width="22" height="22" class="text-yellow-500"></i>
+      {{ '编辑' if level else '新增' }}VIP等级
+    </h2>
+  </div>
+
+  <form action="{{ url_for('vip_admin.edit', level_id=level.id) if level else url_for('vip_admin.add') }}" method="POST" class="glass-card p-6 space-y-5">
+    <!-- 等级名称 -->
+    <div>
+      <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">等级名称 *</label>
+      <input type="text" name="name" value="{{ level.name if level else '' }}" required
+             class="w-full px-4 py-2.5 bg-white/40 dark:bg-slate-800/40 border border-white/60 dark:border-slate-700/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 text-slate-800 dark:text-slate-200"
+             placeholder="如: VIP1, 总裁sama">
+    </div>
+
+    <!-- 经验门槛 / 排序 -->
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">经验门槛</label>
+        <input type="number" name="min_experience" value="{{ level.min_experience if level else 0 }}" min="0"
+               class="w-full px-4 py-2.5 bg-white/40 dark:bg-slate-800/40 border border-white/60 dark:border-slate-700/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 text-slate-800 dark:text-slate-200">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">排序 (越小等级越低)</label>
+        <input type="number" name="sort_order" value="{{ level.sort_order if level else 0 }}"
+               class="w-full px-4 py-2.5 bg-white/40 dark:bg-slate-800/40 border border-white/60 dark:border-slate-700/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 text-slate-800 dark:text-slate-200">
+      </div>
+    </div>
+
+    <!-- 折扣 -->
+    <div>
+      <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">折扣 (100=无折扣, 95=95折)</label>
+      <input type="number" name="discount" value="{{ level.discount if level else 100 }}" min="0" max="100" step="0.1"
+             class="w-full px-4 py-2.5 bg-white/40 dark:bg-slate-800/40 border border-white/60 dark:border-slate-700/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 text-slate-800 dark:text-slate-200">
+    </div>
+
+    <!-- KOOK 角色 -->
+    <div>
+      <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+        <i data-lucide="shield" width="14" height="14" class="inline text-purple-500"></i>
+        升级自动授予 KOOK 角色
+      </label>
+      <select name="kook_role_id"
+              class="w-full px-4 py-2.5 bg-white/40 dark:bg-slate-800/40 border border-white/60 dark:border-slate-700/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 text-slate-800 dark:text-slate-200">
+        <option value="">不授予角色</option>
+        {% for role in kook_roles %}
+        <option value="{{ role.role_id }}" {% if level and level.kook_role_id == role.role_id|string %}selected{% endif %}>
+          {{ role.name }} (ID: {{ role.role_id }})
+        </option>
+        {% endfor %}
+      </select>
+      <p class="text-xs text-slate-400 mt-1">用户升级到此等级时，将自动授予选定的 KOOK 服务器角色</p>
+    </div>
+
+    <!-- 权益描述 -->
+    <div>
+      <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">权益描述 (JSON)</label>
+      <textarea name="benefits" rows="3"
+                class="w-full px-4 py-2.5 bg-white/40 dark:bg-slate-800/40 border border-white/60 dark:border-slate-700/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 text-slate-800 dark:text-slate-200"
+                placeholder='["专属头衔","下单折扣"]'>{{ level.benefits if level else '' }}</textarea>
+    </div>
+
+    <div class="flex gap-3 pt-2">
+      <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white font-medium px-6 py-2.5 rounded-xl transition-colors shadow-sm">
+        {{ '保存修改' if level else '创建等级' }}
+      </button>
+      <a href="{{ url_for('vip_admin.index') }}" class="px-6 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-sm font-medium">
+        取消
+      </a>
+    </div>
+  </form>
+</div>
+{% endblock %}

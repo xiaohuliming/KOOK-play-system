@@ -111,6 +111,8 @@ def create_app(config_class=Config, start_background_tasks=True):
 
     from app.views.upgrade_admin import upgrade_admin_bp
     app.register_blueprint(upgrade_admin_bp, url_prefix='/admin/upgrades')
+    from app.views.vip_admin import vip_admin_bp
+    app.register_blueprint(vip_admin_bp, url_prefix='/admin/vip')
 
     from app.views.system import system_bp
     app.register_blueprint(system_bp, url_prefix='/admin/system')
@@ -167,6 +169,20 @@ def create_app(config_class=Config, start_background_tasks=True):
         except Exception as e:
             db.session.rollback()
             app.logger.warning(f'[Startup] 用户匿名字段补齐失败: {e}')
+
+        # 补齐 vip_levels 表字段
+        try:
+            from sqlalchemy import inspect as sa_inspect2, text as sa_text2
+            insp2 = sa_inspect2(db.engine)
+            if 'vip_levels' in insp2.get_table_names():
+                vip_cols = {c['name'] for c in insp2.get_columns('vip_levels')}
+                if 'kook_role_id' not in vip_cols:
+                    db.session.execute(sa_text2('ALTER TABLE vip_levels ADD COLUMN kook_role_id VARCHAR(100)'))
+                    db.session.commit()
+                    app.logger.info('[Startup] 补齐 vip_levels.kook_role_id')
+        except Exception as e:
+            db.session.rollback()
+            app.logger.warning(f'[Startup] VIP字段补齐失败: {e}')
 
     @app.context_processor
     def inject_top_notifications():

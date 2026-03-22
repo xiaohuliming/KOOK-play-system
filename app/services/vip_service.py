@@ -100,6 +100,16 @@ def sync_vip_level_by_experience(user, levels=None, allow_downgrade=True):
         except Exception as e:
             logger.warning('[VIP] 升级播报异常 user=%s %s -> %s: %s', user.id, old_level, target_level.name, e)
 
+        # KOOK 角色自动授予
+        try:
+            kook_role = getattr(target_level, 'kook_role_id', None)
+            if kook_role:
+                from app.services.kook_service import grant_kook_role, _async_send
+                _async_send(grant_kook_role, user, kook_role)
+                logger.info('[VIP] 升级角色授予已触发 user=%s role=%s level=%s', user.id, kook_role, target_level.name)
+        except Exception as e:
+            logger.warning('[VIP] 升级角色授予异常 user=%s: %s', user.id, e)
+
     return True, target_level, direction
 
 

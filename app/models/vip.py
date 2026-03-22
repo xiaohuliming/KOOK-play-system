@@ -12,6 +12,7 @@ class VipLevel(db.Model):
     discount = db.Column(db.Numeric(5, 2), default=100.00)  # 折扣 (100=无折扣, 95=95折)
     sort_order = db.Column(db.Integer, default=0)  # 排序, 数值越小等级越低
     benefits = db.Column(db.Text)  # JSON: 权益描述列表
+    kook_role_id = db.Column(db.String(100))  # KOOK 服务器角色 ID，升级时自动授予
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 

@@ -39,6 +39,16 @@ def grant(record_id):
     record.granted_at = datetime.utcnow()
     db.session.commit()
 
+    # 自动授予 KOOK 角色
+    try:
+        from app.models.vip import VipLevel
+        target_level = VipLevel.query.filter_by(name=record.to_level).first()
+        if target_level and target_level.kook_role_id:
+            from app.services.kook_service import grant_kook_role, _async_send
+            _async_send(grant_kook_role, record.user, target_level.kook_role_id)
+    except Exception:
+        pass
+
     log_operation(current_user.id, 'upgrade_grant', 'upgrade_record', record.id,
                   f'确认发放升级权益: {record.user.nickname or record.user.username} {record.from_level} → {record.to_level}')
     db.session.commit()
