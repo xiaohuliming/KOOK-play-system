@@ -31,7 +31,7 @@ def chat_api():
         if ok:
             return jsonify({'ok': True, 'reply': reply})
         else:
-            return jsonify({'ok': False, 'error': err}), 500
+            return jsonify({'ok': False, 'error': err})
 
     except Exception as e:
         current_app.logger.error(f'[Assistant] Route crash: {traceback.format_exc()}')

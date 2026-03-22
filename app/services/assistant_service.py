@@ -233,6 +233,10 @@ def chat(user_message, conversation_history=None):
     system_prompt = _build_system_prompt(user)
     platform_context = _get_platform_context(user)
 
+    # 限制上下文长度，避免超出token上限
+    if len(platform_context) > 8000:
+        platform_context = platform_context[:8000] + '\n... (数据过多已截断)'
+
     messages = [
         {'role': 'system', 'content': system_prompt + '\n\n=== 上下文数据 ===\n' + platform_context}
     ]

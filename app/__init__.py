@@ -144,7 +144,28 @@ def create_app(config_class=Config, start_background_tasks=True):
             from app.views.gift_admin import _ensure_gift_sort_order_column
             _ensure_gift_sort_order_column()
         except Exception as e:
-            app.logger.warning(f'[Startup] 自动补齐字段失败: {e}')
+            app.logger.warning(f'[Startup] 礼物字段补齐失败: {e}')
+
+        # 补齐用户匿名设置字段
+        try:
+            from sqlalchemy import inspect as sa_inspect, text as sa_text
+            insp = sa_inspect(db.engine)
+            user_cols = {c['name'] for c in insp.get_columns('users')}
+            anon_cols = [
+                ('anonymous_recharge', 'BOOLEAN DEFAULT 0'),
+                ('anonymous_consume', 'BOOLEAN DEFAULT 0'),
+                ('anonymous_gift_send', 'BOOLEAN DEFAULT 0'),
+                ('anonymous_gift_recv', 'BOOLEAN DEFAULT 0'),
+                ('anonymous_upgrade', 'BOOLEAN DEFAULT 0'),
+            ]
+            for col_name, col_type in anon_cols:
+                if col_name not in user_cols:
+                    db.session.execute(sa_text(f'ALTER TABLE users ADD COLUMN {col_name} {col_type}'))
+                    app.logger.info(f'[Startup] 补齐 users.{col_name}')
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            app.logger.warning(f'[Startup] 用户匿名字段补齐失败: {e}')
 
     @app.context_processor
     def inject_top_notifications():

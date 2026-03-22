@@ -118,6 +118,7 @@ def update_settings():
     current_user.anonymous_consume = request.form.get('anonymous_consume') == 'on'
     current_user.anonymous_gift_send = request.form.get('anonymous_gift_send') == 'on'
     current_user.anonymous_gift_recv = request.form.get('anonymous_gift_recv') == 'on'
+    current_user.anonymous_upgrade = request.form.get('anonymous_upgrade') == 'on'
 
     try:
         db.session.commit()
@@ -126,7 +127,7 @@ def update_settings():
         db.session.rollback()
         flash('设置更新失败', 'error')
 
-    return redirect(url_for('profile.index'))
+    return redirect(url_for('profile.index', tab='info'))
 
 
 @profile_bp.route('/update_profile', methods=['POST'])
