@@ -12,10 +12,13 @@ vip_admin_bp = Blueprint('vip_admin', __name__, template_folder='../templates')
 
 
 def _get_kook_roles():
-    """安全获取 KOOK 角色列表"""
+    """安全获取 KOOK 标签列表"""
     try:
         from app.services.kook_service import fetch_kook_role_catalog
-        return fetch_kook_role_catalog()
+        result, err = fetch_kook_role_catalog()
+        if err or not result:
+            return []
+        return result.get('roles', [])
     except Exception:
         return []
 

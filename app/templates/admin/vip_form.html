@@ -55,8 +55,8 @@
               class="w-full px-4 py-2.5 bg-white/40 dark:bg-slate-800/40 border border-white/60 dark:border-slate-700/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 text-slate-800 dark:text-slate-200">
         <option value="">不授予标签</option>
         {% for role in kook_roles %}
-        <option value="{{ role.role_id }}" {% if level and level.kook_role_id == role.role_id|string %}selected{% endif %}>
-          {{ role.name }} (ID: {{ role.role_id }})
+        <option value="{{ role.id }}" {% if level and level.kook_role_id == role.id|string %}selected{% endif %}>
+          {{ role.name }}{% if role.guild_name %} ({{ role.guild_name }}){% endif %}
         </option>
         {% endfor %}
       </select>
