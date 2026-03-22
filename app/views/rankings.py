@@ -22,6 +22,7 @@ def _is_user_anonymous_for_ranking(user):
     if not user:
         return False
     return any([
+        bool(getattr(user, 'anonymous_ranking', False)),
         bool(getattr(user, 'anonymous_recharge', False)),
         bool(getattr(user, 'anonymous_consume', False)),
         bool(getattr(user, 'anonymous_gift_send', False)),

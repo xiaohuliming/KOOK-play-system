@@ -45,6 +45,7 @@ class User(UserMixin, db.Model):
     anonymous_gift_send = db.Column(db.Boolean, default=False)
     anonymous_gift_recv = db.Column(db.Boolean, default=False)
     anonymous_upgrade = db.Column(db.Boolean, default=False)
+    anonymous_ranking = db.Column(db.Boolean, default=False)
     broadcast_channel = db.Column(db.String(100))
 
     referrer_id = db.Column(db.Integer, db.ForeignKey('users.id'))

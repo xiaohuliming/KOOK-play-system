@@ -119,6 +119,7 @@ def update_settings():
     current_user.anonymous_gift_send = request.form.get('anonymous_gift_send') == 'on'
     current_user.anonymous_gift_recv = request.form.get('anonymous_gift_recv') == 'on'
     current_user.anonymous_upgrade = request.form.get('anonymous_upgrade') == 'on'
+    current_user.anonymous_ranking = request.form.get('anonymous_ranking') == 'on'
 
     try:
         db.session.commit()

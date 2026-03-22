@@ -179,7 +179,24 @@
 
     <form action="{{ url_for('profile.update_settings') }}" method="POST" id="settings-form">
         <div class="space-y-4">
-            <!-- 匿名充值 -->
+            {# 排行榜匿名 #}
+            <div class="flex items-center justify-between p-4 rounded-xl border border-purple-200 dark:border-purple-800/40 bg-purple-50/50 dark:bg-purple-900/10 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors">
+                <div class="flex items-center gap-4">
+                    <div class="p-2 bg-purple-100 text-purple-600 rounded-lg dark:bg-purple-900/30">
+                        <i data-lucide="trophy" width="20" height="20"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-medium text-slate-800 dark:text-slate-200">排行榜匿名</h4>
+                        <p class="text-sm text-slate-400">开启后，您的昵称和头像将不会出现在排行榜上</p>
+                    </div>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" name="anonymous_ranking" class="sr-only peer" onchange="document.getElementById('settings-form').submit()" {% if current_user.anonymous_ranking %}checked{% endif %}>
+                    <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 dark:peer-focus:ring-purple-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-purple-600"></div>
+                </label>
+            </div>
+
+            {# 匿名充值 #}
             <div class="flex items-center justify-between p-4 rounded-xl border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                 <div class="flex items-center gap-4">
                     <div class="p-2 bg-blue-50 text-blue-500 rounded-lg dark:bg-blue-900/20">
