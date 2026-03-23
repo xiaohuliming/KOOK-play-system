@@ -312,14 +312,13 @@ def _build_card(title, content, color='#7C3AED', button_text=None, button_url=No
         else:
             lines.append(str(button_url))
 
-    # 附图：使用官方 KMarkdown 链接解析语法触发缩略图
-    # 文档说明：链接文本与链接地址完全一致，才会显示链接解析(缩略图)
+    # 附图：返回 dict 以便调用方使用卡片消息（type 10）附带图片模块
+    text_body = '\n'.join([ln for ln in lines if ln is not None and ln != ''])
     resolved_image = _resolve_image_url(image_url)
     if resolved_image:
-        safe_url = resolved_image.replace(')', '%29').replace('(', '%28')
-        lines.append(f'[{safe_url}]({safe_url})')
+        return {'text': text_body, 'image_url': resolved_image, 'color': color}
 
-    return '\n'.join([ln for ln in lines if ln is not None and ln != ''])
+    return text_body
 
 
 def _wrap_dm_card(markdown_text, color='#EC4899', button_text=None, button_url=None):
@@ -349,16 +348,39 @@ def _wrap_dm_card(markdown_text, color='#EC4899', button_text=None, button_url=N
     return json.dumps(card)
 
 
-def _send_channel_msg(channel_id, markdown_text):
-    """向频道发送普通 KMarkdown 消息"""
+def _send_channel_msg(channel_id, content):
+    """向频道发送消息。
+    content 为字符串时用 KMarkdown (type 9)；
+    content 为 dict (含 text/image_url/color) 时用卡片消息 (type 10)，图片作为独立模块。
+    """
     if not _get_token() or _get_token() == 'your-kook-bot-token':
         logger.warning('[KOOK] Token 未配置，跳过推送')
         return False
+
     try:
+        if isinstance(content, dict):
+            # 卡片消息：文字 + 图片模块
+            modules = [
+                {'type': 'section', 'text': {'type': 'kmarkdown', 'content': content['text']}},
+            ]
+            img_url = content.get('image_url')
+            if img_url:
+                modules.append({'type': 'container', 'elements': [{'type': 'image', 'src': img_url}]})
+            card_json = json.dumps([{
+                'type': 'card',
+                'theme': 'secondary',
+                'color': content.get('color', '#7C3AED'),
+                'size': 'lg',
+                'modules': modules,
+            }])
+            payload = {'target_id': str(channel_id), 'content': card_json, 'type': 10}
+        else:
+            payload = {'target_id': str(channel_id), 'content': content, 'type': 9}
+
         resp = requests.post(
             f'{KOOK_API_BASE}/message/create',
             headers=_headers(),
-            json={'target_id': str(channel_id), 'content': markdown_text, 'type': 9},
+            json=payload,
             timeout=10,
         )
         data = resp.json()
