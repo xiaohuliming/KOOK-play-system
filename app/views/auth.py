@@ -178,6 +178,18 @@ def register():
         db.session.add(new_user)
         db.session.commit()
 
+        # 注册后自动授予 KOOK 标签
+        if new_user.kook_id:
+            try:
+                from app.models.app_config import AppConfig
+                from app.services.kook_service import grant_kook_role
+                role_key = f'register_{role}_kook_role_id'
+                kook_role_id = AppConfig.get(role_key, '')
+                if kook_role_id:
+                    grant_kook_role(new_user, kook_role_id)
+            except Exception:
+                pass  # 标签授予失败不影响注册流程
+
         flash('注册成功，请登录', 'success')
         return redirect(url_for('auth.login'))
         
@@ -313,6 +325,18 @@ def wechat_oauth_callback():
 
     db.session.add(new_user)
     db.session.commit()
+
+    # 注册后自动授予 KOOK 标签（微信注册无 kook_id，待后续绑定时再处理）
+    if new_user.kook_id:
+        try:
+            from app.models.app_config import AppConfig
+            from app.services.kook_service import grant_kook_role
+            role_key = f'register_{role}_kook_role_id'
+            kook_role_id = AppConfig.get(role_key, '')
+            if kook_role_id:
+                grant_kook_role(new_user, kook_role_id)
+        except Exception:
+            pass
 
     login_user(
         new_user,

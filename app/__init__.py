@@ -54,6 +54,17 @@ def create_app(config_class=Config, start_background_tasks=True):
     _ensure_gift_schema_compat(app)
     _ensure_broadcast_schema_compat(app)
 
+    # 确保 app_configs 表存在
+    with app.app_context():
+        try:
+            from app.models.app_config import AppConfig  # noqa: F401
+            insp = inspect(db.engine)
+            if 'app_configs' not in set(insp.get_table_names()):
+                AppConfig.__table__.create(db.engine)
+                app.logger.info('[Schema] app_configs 表已创建')
+        except Exception as e:
+            app.logger.warning(f'[Schema] app_configs 表创建失败: {e}')
+
     # Register blueprints
     from app.views.dashboard import dashboard_bp
     app.register_blueprint(dashboard_bp)

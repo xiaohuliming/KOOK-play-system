@@ -17,7 +17,28 @@ system_bp = Blueprint('system', __name__)
 def index():
     """系统工具首页"""
     intimacy_count = Intimacy.query.count()
-    return render_template('system/index.html', intimacy_count=intimacy_count)
+
+    # KOOK 注册标签配置
+    from app.models.app_config import AppConfig
+    register_god_kook_role = AppConfig.get('register_god_kook_role_id', '')
+    register_player_kook_role = AppConfig.get('register_player_kook_role_id', '')
+
+    # 获取 KOOK 服务器标签列表
+    kook_roles = []
+    try:
+        from app.services.kook_service import fetch_kook_role_catalog
+        result, err = fetch_kook_role_catalog()
+        if not err and result:
+            kook_roles = result.get('roles', []) if isinstance(result, dict) else []
+    except Exception:
+        pass
+
+    return render_template('system/index.html',
+        intimacy_count=intimacy_count,
+        kook_roles=kook_roles,
+        register_god_kook_role=register_god_kook_role,
+        register_player_kook_role=register_player_kook_role,
+    )
 
 @system_bp.route('/upload', methods=['POST'])
 @login_required
@@ -130,3 +151,21 @@ def bot_debug():
                 result = {'success': False, 'message': str(e)}
 
     return render_template('system/bot_debug.html', result=result)
+
+
+@system_bp.route('/register-kook-roles', methods=['POST'])
+@login_required
+@admin_required
+def save_register_kook_roles():
+    """保存注册自动授予 KOOK 标签配置"""
+    from app.models.app_config import AppConfig
+
+    god_role_id = request.form.get('register_god_kook_role_id', '').strip()
+    player_role_id = request.form.get('register_player_kook_role_id', '').strip()
+
+    AppConfig.set('register_god_kook_role_id', god_role_id, '注册老板自动授予的KOOK标签ID')
+    AppConfig.set('register_player_kook_role_id', player_role_id, '注册陪玩自动授予的KOOK标签ID')
+    db.session.commit()
+
+    flash('注册 KOOK 标签配置已保存', 'success')
+    return redirect(url_for('system.index'))
