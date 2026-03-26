@@ -178,20 +178,27 @@ def test_grant_role():
     """调测: 手动测试 KOOK 标签授予"""
     from app.models.user import User
 
-    user_id = request.form.get('user_id', '').strip()
+    user_input = request.form.get('user_id', '').strip()
     role_id = request.form.get('role_id', '').strip()
 
-    if not user_id or not role_id:
-        flash('请填写用户ID和标签ID', 'error')
+    if not user_input or not role_id:
+        flash('请填写用户ID/KOOK ID 和标签ID', 'error')
         return redirect(url_for('system.index'))
 
-    user = User.query.get(int(user_id))
+    # 优先按 kook_id 查找，再按平台 user.id 查找
+    user = User.query.filter_by(kook_id=user_input).first()
     if not user:
-        flash(f'用户 #{user_id} 不存在', 'error')
+        try:
+            user = User.query.get(int(user_input))
+        except (ValueError, TypeError):
+            pass
+
+    if not user:
+        flash(f'未找到用户（输入: {user_input}），请确认平台用户ID或KOOK ID', 'error')
         return redirect(url_for('system.index'))
 
     if not user.kook_id:
-        flash(f'用户 #{user_id} 未绑定 KOOK', 'error')
+        flash(f'用户 {user.nickname or user.username}（#{user.id}）未绑定 KOOK', 'error')
         return redirect(url_for('system.index'))
 
     # 同步调用（不用 _async_send），这样能直接看到结果
