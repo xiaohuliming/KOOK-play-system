@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/favicon-192.png') }}">
   
   <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="{{ url_for('static', filename='js/tailwind.min.js') }}"></script>
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -18,7 +18,7 @@
   </script>
   
   <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="{{ url_for('static', filename='js/lucide.min.js') }}"></script>
 
   <style>
     /* 空间感背景动画 */

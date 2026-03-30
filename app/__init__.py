@@ -196,13 +196,29 @@ def create_app(config_class=Config, start_background_tasks=True):
             db.session.rollback()
             app.logger.warning(f'[Startup] VIP字段补齐失败: {e}')
 
+    _notif_cache = {}  # {user_id: (timestamp, result)}
+    _NOTIF_TTL = 30  # 缓存30秒
+
     @app.context_processor
     def inject_top_notifications():
         if not current_user.is_authenticated:
             return {'top_notifications': {'total': 0, 'items': []}}
         try:
+            import time
+            uid = current_user.id
+            now = time.time()
+            cached = _notif_cache.get(uid)
+            if cached and (now - cached[0]) < _NOTIF_TTL:
+                return {'top_notifications': cached[1]}
             from app.services.notification_service import get_top_notifications
-            return {'top_notifications': get_top_notifications(current_user)}
+            result = get_top_notifications(current_user)
+            _notif_cache[uid] = (now, result)
+            # 清理过期缓存，防止内存泄漏
+            if len(_notif_cache) > 200:
+                expired = [k for k, v in _notif_cache.items() if (now - v[0]) > _NOTIF_TTL * 2]
+                for k in expired:
+                    _notif_cache.pop(k, None)
+            return {'top_notifications': result}
         except Exception as e:
             app.logger.warning(f'[Notification] 聚合失败: {e}')
             return {'top_notifications': {'total': 0, 'items': []}}
