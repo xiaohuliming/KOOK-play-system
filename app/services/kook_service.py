@@ -1593,7 +1593,7 @@ def push_gift_broadcast(gift_order):
 
     # 构建消息内容（用第一个配置的模板）
     def _make_card(cfg):
-        cfg_template_raw = cfg.template or '' if cfg else ''
+        cfg_template_raw = (cfg.template or '') if cfg else ''
         cfg_template = cfg_template_raw if cfg_template_raw.strip() else ''
         use_gift = bool(selected_gift_template and selected_gift_template.strip())
         use_cfg = bool(cfg_template and cfg_template.strip())
@@ -1604,29 +1604,35 @@ def push_gift_broadcast(gift_order):
         image_url = '' if gift_image_asset_url else (gift_image_url or _resolve_image_url(getattr(cfg, 'image_url', '') or ''))
         return _build_card(meta['title'], text, meta['color'], image_url=image_url)
 
-    if user_override_channels:
-        # 用户设置了自定义频道 → 只发到自定义频道，不发公共频道
-        print(f'[KOOK 礼物播报] 用户自定义频道覆盖: {user_override_channels}，跳过公共频道')
-        cfg = configs[0] if configs else None
-        card_json = _make_card(cfg)
-        for ch in user_override_channels:
-            print(f'[KOOK 礼物播报] 发送到用户自定义频道={ch}')
-            _async_send(_send_channel_msg, ch, card_json)
-            if gift_image_asset_url:
-                _async_send(_send_channel_image, ch, gift_image_asset_url)
-            sent = True
-    else:
-        # 无自定义频道 → 按正常配置频道发送
-        print(f'[KOOK 礼物播报] 无用户覆盖, configs={len(configs)}')
-        for cfg in configs:
-            if not cfg.channel_id:
-                continue
+    try:
+        if user_override_channels:
+            # 用户设置了自定义频道 → 只发到自定义频道，不发公共频道
+            print(f'[KOOK 礼物播报] 用户自定义频道覆盖: {user_override_channels}，跳过公共频道')
+            cfg = configs[0] if configs else None
             card_json = _make_card(cfg)
-            print(f'[KOOK 礼物播报] 发送到 cfg 频道={cfg.channel_id}, card_type={type(card_json).__name__}')
-            _async_send(_send_channel_msg, cfg.channel_id, card_json)
-            if gift_image_asset_url:
-                _async_send(_send_channel_image, cfg.channel_id, gift_image_asset_url)
-            sent = True
+            for ch in user_override_channels:
+                print(f'[KOOK 礼物播报] 发送到用户自定义频道={ch}')
+                _async_send(_send_channel_msg, ch, card_json)
+                if gift_image_asset_url:
+                    _async_send(_send_channel_image, ch, gift_image_asset_url)
+                sent = True
+        else:
+            # 无自定义频道 → 按正常配置频道发送
+            print(f'[KOOK 礼物播报] 无用户覆盖, configs={len(configs)}')
+            for cfg in configs:
+                if not cfg.channel_id:
+                    continue
+                card_json = _make_card(cfg)
+                print(f'[KOOK 礼物播报] 发送到 cfg 频道={cfg.channel_id}, card_type={type(card_json).__name__}')
+                _async_send(_send_channel_msg, cfg.channel_id, card_json)
+                if gift_image_asset_url:
+                    _async_send(_send_channel_image, cfg.channel_id, gift_image_asset_url)
+                sent = True
+    except Exception as e:
+        print(f'[KOOK 礼物播报] 构建/发送异常: {e}')
+        logger.error(f'[KOOK] 礼物播报异常: {e}')
+        import traceback
+        traceback.print_exc()
 
     if not sent:
         print('[KOOK 礼物播报] 跳过: 未找到可用频道')
