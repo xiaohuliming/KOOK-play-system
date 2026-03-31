@@ -168,7 +168,7 @@ def init_scheduler(app):
 
     scheduler.add_job(
         auto_draw_lotteries,
-        trigger=IntervalTrigger(seconds=5),
+        trigger=IntervalTrigger(seconds=30),
         id='auto_draw_lotteries',
         name='自动开奖到期抽奖',
         replace_existing=True
@@ -176,7 +176,7 @@ def init_scheduler(app):
 
     scheduler.add_job(
         update_lottery_counts,
-        trigger=IntervalTrigger(seconds=10),
+        trigger=IntervalTrigger(seconds=60),
         id='update_lottery_counts',
         name='更新抽奖参与人数',
         replace_existing=True
@@ -208,7 +208,7 @@ def init_scheduler(app):
 
     scheduler.add_job(
         weekly_withdraw_reminder_job,
-        trigger=IntervalTrigger(minutes=1),
+        trigger=IntervalTrigger(minutes=5),
         id='weekly_withdraw_reminder_job',
         name='周定时提现提醒',
         replace_existing=True
