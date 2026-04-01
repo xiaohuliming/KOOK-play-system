@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify
+from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify, send_file
 from flask_login import login_required, current_user
 from sqlalchemy import or_, func
 from datetime import datetime, date
@@ -771,3 +771,157 @@ def _sync_user_kook_profile(user, force_nickname=False, force_username=False):
         or (old_username != (user.username or ''))
     )
     return True, changed, None, old_name, (kook_username or '')
+
+
+@users_bp.route('/<int:user_id>/export_detail')
+@login_required
+@staff_required
+def export_detail(user_id):
+    """导出用户详情页筛选后的数据为 Excel"""
+    import io
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, Alignment, PatternFill
+    except ImportError:
+        flash('导出失败，请安装 openpyxl: pip install openpyxl', 'error')
+        return redirect(url_for('users.detail', user_id=user_id))
+
+    from app.utils.time_utils import to_beijing
+
+    user = User.query.get_or_404(user_id)
+    tab = request.args.get('tab', 'balance')
+    change_type = request.args.get('change_type', '')
+    date_from = request.args.get('date_from', '').strip()
+    date_to = request.args.get('date_to', '').strip()
+
+    wb = Workbook()
+    ws = wb.active
+
+    # 样式
+    header_font = Font(bold=True, color='FFFFFF', size=11)
+    header_fill = PatternFill(start_color='7C3AED', end_color='7C3AED', fill_type='solid')
+    header_align = Alignment(horizontal='center', vertical='center')
+
+    def _write_headers(sheet, headers):
+        for col_idx, h in enumerate(headers, 1):
+            cell = sheet.cell(row=1, column=col_idx, value=h)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_align
+
+    def _fmt_time(dt):
+        bj = to_beijing(dt)
+        return bj.strftime('%Y-%m-%d %H:%M:%S') if bj else ''
+
+    display_name = user.player_nickname or user.nickname or user.username
+
+    if tab == 'balance':
+        ws.title = '嗯呢币流水'
+        q = BalanceLog.query.filter_by(user_id=user_id)
+        if change_type:
+            q = q.filter(BalanceLog.change_type == change_type)
+        if date_from:
+            q = q.filter(BalanceLog.created_at >= date_from)
+        if date_to:
+            q = q.filter(BalanceLog.created_at <= date_to + ' 23:59:59')
+        rows = q.order_by(BalanceLog.created_at.desc()).all()
+
+        type_labels = {
+            'recharge': '充值', 'consume': '消费', 'gift_send': '赠送礼物',
+            'admin_gift': '赠金', 'order_hold': '订单冻结', 'order_unhold': '订单解冻',
+            'refund': '退款', 'admin_adjust': '管理变账',
+            'exchange_in': '转换转入', 'exchange_out': '转换转出',
+        }
+        _write_headers(ws, ['类型', '变动金额', '变动后余额', '原因', '时间'])
+        for i, log in enumerate(rows, 2):
+            ws.cell(row=i, column=1, value=type_labels.get(log.change_type, log.change_type))
+            ws.cell(row=i, column=2, value=float(log.amount))
+            ws.cell(row=i, column=3, value=float(log.balance_after))
+            ws.cell(row=i, column=4, value=log.reason or '')
+            ws.cell(row=i, column=5, value=_fmt_time(log.created_at))
+
+        filename = f'{display_name}_嗯呢币流水_{datetime.now().strftime("%Y%m%d")}.xlsx'
+
+    elif tab == 'commission':
+        ws.title = '小猪粮流水'
+        q = CommissionLog.query.filter_by(user_id=user_id)
+        q = q.filter(~CommissionLog.change_type.in_(['staff_commission', 'staff_refund_deduct']))
+        if change_type:
+            q = q.filter(CommissionLog.change_type == change_type)
+        if date_from:
+            q = q.filter(CommissionLog.created_at >= date_from)
+        if date_to:
+            q = q.filter(CommissionLog.created_at <= date_to + ' 23:59:59')
+        rows = q.order_by(CommissionLog.created_at.desc()).all()
+
+        type_labels = {
+            'order_income': '订单收入', 'gift_income': '礼物收入',
+            'withdraw': '提现', 'refund_deduct': '退款扣回',
+            'admin_adjust': '管理调整', 'withdraw_freeze': '提现冻结',
+            'exchange_in': '转换转入', 'exchange_out': '转换转出',
+        }
+        _write_headers(ws, ['类型', '变动金额', '变动后余额', '原因', '时间'])
+        for i, log in enumerate(rows, 2):
+            ws.cell(row=i, column=1, value=type_labels.get(log.change_type, log.change_type))
+            ws.cell(row=i, column=2, value=float(log.amount))
+            ws.cell(row=i, column=3, value=float(log.balance_after))
+            ws.cell(row=i, column=4, value=log.reason or '')
+            ws.cell(row=i, column=5, value=_fmt_time(log.created_at))
+
+        filename = f'{display_name}_小猪粮流水_{datetime.now().strftime("%Y%m%d")}.xlsx'
+
+    elif tab == 'orders':
+        ws.title = '订单记录'
+        q = Order.query.filter(or_(Order.boss_id == user_id, Order.player_id == user_id))
+        if date_from:
+            q = q.filter(Order.created_at >= date_from)
+        if date_to:
+            q = q.filter(Order.created_at <= date_to + ' 23:59:59')
+        rows = q.order_by(Order.created_at.desc()).all()
+
+        _write_headers(ws, ['订单号', '类型', '老板', '陪玩', '项目', '金额', '状态', '时间'])
+        status_map = {
+            'pending_report': '待申报', 'pending_confirm': '待确认',
+            'pending_pay': '待结算', 'paid': '已结算', 'cancelled': '已取消',
+        }
+        for i, o in enumerate(rows, 2):
+            boss = User.query.get(o.boss_id) if o.boss_id else None
+            player = User.query.get(o.player_id) if o.player_id else None
+            ws.cell(row=i, column=1, value=o.order_no or str(o.id))
+            ws.cell(row=i, column=2, value=o.order_type or 'normal')
+            ws.cell(row=i, column=3, value=(boss.nickname or boss.username) if boss else '-')
+            ws.cell(row=i, column=4, value=(player.player_nickname or player.nickname or player.username) if player else '-')
+            ws.cell(row=i, column=5, value=o.project_name or '-')
+            ws.cell(row=i, column=6, value=float(o.total_price or 0))
+            ws.cell(row=i, column=7, value=status_map.get(o.status, o.status))
+            ws.cell(row=i, column=8, value=_fmt_time(o.created_at))
+
+        filename = f'{display_name}_订单记录_{datetime.now().strftime("%Y%m%d")}.xlsx'
+
+    else:
+        flash('该标签暂不支持导出', 'error')
+        return redirect(url_for('users.detail', user_id=user_id, tab=tab))
+
+    # 自动列宽
+    for col in ws.columns:
+        max_len = 0
+        col_letter = col[0].column_letter
+        for cell in col:
+            try:
+                val_len = len(str(cell.value or ''))
+                if val_len > max_len:
+                    max_len = val_len
+            except Exception:
+                pass
+        ws.column_dimensions[col_letter].width = min(max_len + 4, 40)
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=filename,
+    )
+

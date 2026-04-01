@@ -250,10 +250,16 @@
         <input type="date" name="date_to" value="{{ date_to }}" class="px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-white">
         <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl text-sm font-medium">筛选</button>
       </form>
-      <button onclick="document.getElementById('adjust-modal').classList.remove('hidden');document.getElementById('adjust-modal').classList.add('flex')"
-        class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-1">
-        <i data-lucide="plus-circle" width="16" height="16"></i> 手动变账
-      </button>
+      <div class="flex gap-2">
+        <a href="{{ url_for('users.export_detail', user_id=user.id, tab='balance', change_type=request.args.get('change_type',''), date_from=date_from, date_to=date_to) }}"
+          class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-1">
+          <i data-lucide="download" width="16" height="16"></i> 导出
+        </a>
+        <button onclick="document.getElementById('adjust-modal').classList.remove('hidden');document.getElementById('adjust-modal').classList.add('flex')"
+          class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-1">
+          <i data-lucide="plus-circle" width="16" height="16"></i> 手动变账
+        </button>
+      </div>
     </div>
 
     {# 日志列表 #}
@@ -370,6 +376,12 @@
       <input type="date" name="date_to" value="{{ date_to }}" class="px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-white">
       <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl text-sm font-medium">筛选</button>
     </form>
+    <div class="flex justify-end mb-4">
+      <a href="{{ url_for('users.export_detail', user_id=user.id, tab='commission', change_type=request.args.get('change_type',''), date_from=date_from, date_to=date_to) }}"
+        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-1">
+        <i data-lucide="download" width="16" height="16"></i> 导出
+      </a>
+    </div>
 
     <div class="overflow-x-auto">
       <table class="w-full text-left border-collapse">
@@ -433,6 +445,12 @@
       <input type="date" name="date_to" value="{{ date_to }}" class="px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-white">
       <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl text-sm font-medium">筛选</button>
     </form>
+    <div class="flex justify-end mb-4">
+      <a href="{{ url_for('users.export_detail', user_id=user.id, tab='orders', date_from=date_from, date_to=date_to) }}"
+        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-1">
+        <i data-lucide="download" width="16" height="16"></i> 导出
+      </a>
+    </div>
 
     <div class="overflow-x-auto">
       <table class="w-full text-left border-collapse">
