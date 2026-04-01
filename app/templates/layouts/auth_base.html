@@ -9,13 +9,8 @@
   <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='img/favicon-192.png') }}">
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/favicon-192.png') }}">
   
-  <!-- Tailwind CSS -->
-  <script src="{{ url_for('static', filename='js/tailwind.min.js') }}"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-    }
-  </script>
+  <!-- Tailwind CSS (pre-compiled) -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}">
   
   <!-- Lucide Icons -->
   <script src="{{ url_for('static', filename='js/lucide.min.js') }}"></script>
