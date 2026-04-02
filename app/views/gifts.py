@@ -156,7 +156,7 @@ def send():
         kook_service.push_gift_to_player(gift_order)
         kook_service.push_gift_broadcast(gift_order)
         flash(f'礼物赠送成功: {gift.name} x{quantity}', 'success')
-        return redirect(url_for('gifts.index'))
+        return redirect(url_for('gifts.send'))
 
     gifts = Gift.query.filter_by(status=True).order_by(Gift.sort_order.asc(), Gift.id.asc()).all()
     return render_template('gifts/send.html', gifts=gifts)
