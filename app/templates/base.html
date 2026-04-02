@@ -113,7 +113,7 @@
   </style>
   {% block styles %}{% endblock %}
 </head>
-<body class="min-h-screen bg-[#f4f5f7] dark:bg-slate-900 font-sans text-slate-800 dark:text-slate-100 selection:bg-purple-200 dark:selection:bg-purple-900 relative md:overflow-hidden transition-colors duration-300">
+<body class="min-h-screen bg-[#f4f5f7] dark:bg-slate-900 font-sans text-slate-800 dark:text-slate-100 selection:bg-purple-200 dark:selection:bg-purple-900 relative transition-colors duration-300">
   
   <!-- 渐变背景底色 -->
   <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-50 via-[#f4f5f7] to-purple-50 dark:from-slate-900 dark:via-slate-950 dark:to-indigo-950 -z-20 transition-colors duration-500"></div>
@@ -203,10 +203,10 @@
   </aside>
 
   <!-- 页面主容器 -->
-  <div class="flex relative z-10 max-w-[1600px] mx-auto p-3 sm:p-6 lg:p-8 min-h-screen md:h-screen gap-4 md:gap-8">
+  <div class="flex relative z-10 max-w-[1600px] mx-auto p-3 sm:p-6 lg:p-8 min-h-screen gap-4 md:gap-8">
     
     <!-- 左侧导航栏 (桌面端) -->
-    <aside class="w-64 flex-shrink-0 flex-col h-full overflow-hidden hidden md:flex">
+    <aside class="w-64 flex-shrink-0 flex-col hidden md:flex md:sticky md:top-0 md:h-screen md:overflow-y-auto">
       <div class="flex items-center gap-3 px-6 py-8 flex-shrink-0">
         <div class="w-11 h-11 rounded-2xl overflow-hidden border border-white/70 dark:border-slate-700/70 shadow-lg shadow-slate-300/30 dark:shadow-black/20 bg-white">
           <img src="{{ url_for('static', filename='img/site-logo.png') }}" alt="嗯呢呗电竞 Logo" class="w-full h-full object-cover">
@@ -322,7 +322,7 @@
     </aside>
 
     <!-- 右侧主内容区 -->
-    <main class="flex-1 flex flex-col h-full overflow-y-auto pr-2 pb-8 custom-scrollbar">
+    <main class="flex-1 flex flex-col pb-8">
       
       <!-- 顶部 Header -->
       <header class="flex items-center justify-between py-4 md:py-6">
