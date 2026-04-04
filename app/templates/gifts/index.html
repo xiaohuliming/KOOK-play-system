@@ -122,7 +122,7 @@
             <td class="py-3 text-slate-600 dark:text-slate-300">
               <span class="flex items-center gap-1">
                 {% if go.gift.image %}
-                <img src="{{ url_for('static', filename=go.gift.image) }}" class="w-5 h-5 rounded" alt="">
+                <img src="{{ url_for('static', filename=go.gift.image) }}" class="w-5 h-5 rounded" alt="" loading="lazy" decoding="async">
                 {% endif %}
                 {{ go.gift.name if go.gift else '-' }}
                 {% if go.gift and go.gift.gift_type == 'crown' %}

@@ -31,11 +31,17 @@ def allowed_image(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
 
+_gift_schema_checked = False  # 缓存标记，每次部署只检查一次
+
 def _ensure_gift_sort_order_column():
     """
     兼容旧库：若 gifts.sort_order / deleted_at / crown_broadcast_template 缺失则自动补齐。
-    避免在新增礼物时直接 500。
+    使用模块级缓存，每次部署只检查一次，避免每个请求都做全表结构扫描。
     """
+    global _gift_schema_checked
+    if _gift_schema_checked:
+        return True, None
+
     try:
         cols = {c.get('name') for c in inspect(db.engine).get_columns('gifts')}
     except Exception as e:
@@ -85,6 +91,7 @@ def _ensure_gift_sort_order_column():
             db.session.rollback()
             return False, f'补齐 gifts.receiver_kook_role_id 字段失败: {e}'
 
+    _gift_schema_checked = True
     return True, None
 
 

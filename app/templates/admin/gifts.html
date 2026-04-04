@@ -50,7 +50,7 @@
             </td>
             <td class="py-3">
               {% if gift.image %}
-              <img src="{{ url_for('static', filename=gift.image) }}" class="w-10 h-10 rounded-xl object-cover" alt="{{ gift.name }}">
+              <img src="{{ url_for('static', filename=gift.image) }}" class="w-10 h-10 rounded-xl object-cover" alt="{{ gift.name }}" loading="lazy" decoding="async">
               {% else %}
               <div class="w-10 h-10 rounded-xl bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
                 <i data-lucide="gift" width="18" height="18" class="text-slate-400"></i>
