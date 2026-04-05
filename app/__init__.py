@@ -72,8 +72,6 @@ def create_app(config_class=Config, start_background_tasks=True):
     from app.views.auth import auth_bp
     app.register_blueprint(auth_bp, url_prefix='/auth')
 
-    from app.views.companions import companions_bp
-    app.register_blueprint(companions_bp, url_prefix='/companions')
 
     from app.views.orders import orders_bp
     app.register_blueprint(orders_bp, url_prefix='/orders')

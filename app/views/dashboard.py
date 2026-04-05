@@ -27,7 +27,9 @@ def index():
     def _bj_period_start_utc(period_key: str):
         bj_now = datetime.now(BJ_TZ)
         if period_key == 'week':
-            start_day = bj_now.date() - timedelta(days=bj_now.weekday())
+            monday = bj_now.date() - timedelta(days=bj_now.weekday())
+            month_1st = bj_now.date().replace(day=1)
+            start_day = max(monday, month_1st)  # 本周不跨到上个月
         elif period_key == 'month':
             start_day = bj_now.date().replace(day=1)
         else:
