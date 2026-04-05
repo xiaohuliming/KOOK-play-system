@@ -9,3 +9,4 @@ khl.py
 openpyxl
 pymysql
 APScheduler
+pytz

@@ -154,6 +154,11 @@ def add():
     db.session.commit()
 
     flash(f'播报配置已添加: {type_label}', 'success')
+
+    # 同步定时任务
+    from app.scheduler import sync_weekly_reminder_jobs
+    sync_weekly_reminder_jobs()
+
     return redirect(request.referrer or url_for('broadcast_admin.index'))
 
 
@@ -206,6 +211,11 @@ def edit(config_id):
     db.session.commit()
 
     flash('播报配置已更新', 'success')
+
+    # 同步定时任务
+    from app.scheduler import sync_weekly_reminder_jobs
+    sync_weekly_reminder_jobs()
+
     return redirect(request.referrer or url_for('broadcast_admin.index'))
 
 
@@ -221,6 +231,11 @@ def delete(config_id):
     db.session.commit()
 
     flash('播报配置已删除', 'success')
+
+    # 同步定时任务
+    from app.scheduler import sync_weekly_reminder_jobs
+    sync_weekly_reminder_jobs()
+
     return redirect(request.referrer or url_for('broadcast_admin.index'))
 
 

@@ -2199,7 +2199,7 @@ def run_weekly_withdraw_reminder_job():
     if not now_bj:
         return 0
     weekday = now_bj.weekday()  # 0=Mon
-    hm = (now_bj.hour, now_bj.minute)
+    now_total_min = now_bj.hour * 60 + now_bj.minute
 
     configs = BroadcastConfig.query.filter_by(
         broadcast_type='weekly_withdraw_reminder',
@@ -2221,7 +2221,9 @@ def run_weekly_withdraw_reminder_job():
         parsed = _parse_hhmm(cfg.schedule_time or '12:00')
         if not parsed:
             parsed = (12, 0)
-        if parsed != hm:
+        cfg_total_min = parsed[0] * 60 + parsed[1]
+        # 5分钟窗口匹配：只要当前时间在配置时间 [0, +5) 分钟内即可触发
+        if not (0 <= now_total_min - cfg_total_min < 5):
             continue
 
         # 防重复：同一天同配置只发送一次
@@ -2267,3 +2269,51 @@ def send_test_message(channel_id, title, content, msg_type='success'):
     color = color_map.get(msg_type, '#7C3AED')
     card_json = _build_card(title or '调测消息', content, color)
     return _send_channel_msg(channel_id, card_json)
+
+
+def send_weekly_reminder_for_config(config_id):
+    """
+    精确发送一条 weekly_withdraw_reminder 配置的提醒。
+    由 CronTrigger 在精确时间调用，不需要时间匹配逻辑。
+    返回 True 表示发送成功。
+    """
+    from app.models.broadcast import BroadcastConfig
+    from app.extensions import db
+    from app.utils.time_utils import to_beijing
+
+    cfg = BroadcastConfig.query.get(config_id)
+    if not cfg or not cfg.status or not cfg.channel_id:
+        return False
+
+    if cfg.broadcast_type != 'weekly_withdraw_reminder':
+        return False
+
+    # 防重复：同一天同配置只发送一次
+    now_bj = to_beijing(datetime.utcnow())
+    if cfg.last_sent_at:
+        last_bj = to_beijing(cfg.last_sent_at)
+        if last_bj and now_bj and (
+            last_bj.year == now_bj.year and
+            last_bj.month == now_bj.month and
+            last_bj.day == now_bj.day
+        ):
+            return False
+
+    meta = BROADCAST_TYPES['weekly_withdraw_reminder']
+    cfg_weekday = int(cfg.schedule_weekday if cfg.schedule_weekday is not None else 6)
+    parsed = _parse_hhmm(cfg.schedule_time or '12:00') or (12, 0)
+
+    roles = _role_mentions_from_csv(cfg.mention_role_ids or '')
+    variables = {
+        'weekday': _weekday_cn(cfg_weekday),
+        'time': f'{parsed[0]:02d}:{parsed[1]:02d}',
+        'roles': roles or '(met)all(met)',
+        '@all': '(met)all(met)',
+        '@here': '(met)here(met)',
+    }
+    text = _render_tpl((cfg.template or meta['default_template']), variables)
+    ok = _send_channel_msg(cfg.channel_id, _build_card(meta['title'], text, meta['color'], image_url=cfg.image_url))
+    if ok:
+        cfg.last_sent_at = datetime.utcnow()
+        db.session.commit()
+    return ok

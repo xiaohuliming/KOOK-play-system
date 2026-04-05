@@ -4,8 +4,10 @@ APScheduler 定时任务配置
 from datetime import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.triggers.cron import CronTrigger
 
 scheduler = BackgroundScheduler()
+_app_ref = None  # 保持对 Flask app 的引用
 
 
 def init_scheduler(app):
@@ -190,14 +192,6 @@ def init_scheduler(app):
             if count > 0:
                 app.logger.info(f'[Scheduler] 生日祝福播报 {count} 人')
 
-    def weekly_withdraw_reminder_job():
-        """周定时提现提醒任务（北京时间）"""
-        with app.app_context():
-            from app.services.kook_service import run_weekly_withdraw_reminder_job
-            count = run_weekly_withdraw_reminder_job()
-            if count > 0:
-                app.logger.info(f'[Scheduler] 定时提现提醒发送 {count} 条')
-
     scheduler.add_job(
         birthday_broadcast_job,
         trigger=IntervalTrigger(minutes=30),
@@ -206,13 +200,82 @@ def init_scheduler(app):
         replace_existing=True
     )
 
-    scheduler.add_job(
-        weekly_withdraw_reminder_job,
-        trigger=IntervalTrigger(minutes=5),
-        id='weekly_withdraw_reminder_job',
-        name='周定时提现提醒',
-        replace_existing=True
-    )
+    # 保存 app 引用供 sync 函数使用
+    global _app_ref
+    _app_ref = app
 
+    # 启动调度器
     scheduler.start()
     app.logger.info('[Scheduler] 定时任务已启动')
+
+    # 从数据库加载所有提现提醒配置，注册精确 CronTrigger
+    sync_weekly_reminder_jobs(app)
+
+
+def sync_weekly_reminder_jobs(app=None):
+    """
+    同步数据库中的 weekly_withdraw_reminder 配置到 APScheduler CronTrigger。
+    在启动时 / 管理员增删改配置后调用。
+    """
+    app = app or _app_ref
+    if not app:
+        return
+
+    with app.app_context():
+        from app.models.broadcast import BroadcastConfig
+        import pytz
+
+        BJ_TZ = pytz.timezone('Asia/Shanghai')
+
+        # 1. 清理所有旧的 weekly_reminder cron job
+        existing_jobs = scheduler.get_jobs()
+        for job in existing_jobs:
+            if job.id.startswith('weekly_reminder_'):
+                scheduler.remove_job(job.id)
+
+        # 2. 为每条启用的配置注册精确 CronTrigger
+        configs = BroadcastConfig.query.filter_by(
+            broadcast_type='weekly_withdraw_reminder',
+            status=True,
+        ).all()
+
+        for cfg in configs:
+            if not cfg.channel_id:
+                continue
+
+            weekday = int(cfg.schedule_weekday if cfg.schedule_weekday is not None else 6)
+            time_str = cfg.schedule_time or '12:00'
+            parts = time_str.split(':')
+            try:
+                hour = int(parts[0])
+                minute = int(parts[1]) if len(parts) > 1 else 0
+            except (ValueError, IndexError):
+                hour, minute = 12, 0
+
+            # APScheduler day_of_week: 0=Mon ... 6=Sun（与 Python weekday 一致）
+            job_id = f'weekly_reminder_{cfg.id}'
+            config_id = cfg.id  # 闭包捕获
+
+            def _make_job_func(cid):
+                def _job():
+                    with app.app_context():
+                        from app.services.kook_service import send_weekly_reminder_for_config
+                        ok = send_weekly_reminder_for_config(cid)
+                        if ok:
+                            app.logger.info(f'[Scheduler] 定时提现提醒已发送 config_id={cid}')
+                return _job
+
+            scheduler.add_job(
+                _make_job_func(config_id),
+                trigger=CronTrigger(
+                    day_of_week=weekday,
+                    hour=hour,
+                    minute=minute,
+                    timezone=BJ_TZ,
+                ),
+                id=job_id,
+                name=f'提现提醒 #{cfg.id} 周{"一二三四五六日"[weekday]} {hour:02d}:{minute:02d}',
+                replace_existing=True,
+            )
+
+        app.logger.info(f'[Scheduler] 已同步 {len(configs)} 条提现提醒 CronTrigger')
