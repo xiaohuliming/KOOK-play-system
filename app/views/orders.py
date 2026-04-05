@@ -104,19 +104,14 @@ def index():
     if date_to:
         query = query.filter(Order.created_at <= date_to + ' 23:59:59')
 
-    # 统计 (客服/管理可见)
+    # 统计 (客服/管理可见) — 基于当前筛选条件
     stats = None
     if has_staff_identity:
         paid_statuses = ['pending_pay', 'paid']
-        stats_query = Order.query
-        if subtab == 'order':
-            stats_query = stats_query.filter(or_(Order.order_type == 'normal', Order.order_type.is_(None)))
-        else:
-            stats_query = stats_query.filter(Order.order_type == subtab)
-        paid_query = stats_query.filter(Order.status.in_(paid_statuses))
-        total_amount = paid_query.with_entities(func.sum(Order.total_price)).scalar() or Decimal('0')
-        player_wages = paid_query.with_entities(func.sum(Order.player_earning)).scalar() or Decimal('0')
-        platform_revenue = paid_query.with_entities(func.sum(Order.shop_earning)).scalar() or Decimal('0')
+        stats_base = query.filter(Order.status.in_(paid_statuses))
+        total_amount = stats_base.with_entities(func.sum(Order.total_price)).scalar() or Decimal('0')
+        player_wages = stats_base.with_entities(func.sum(Order.player_earning)).scalar() or Decimal('0')
+        platform_revenue = stats_base.with_entities(func.sum(Order.shop_earning)).scalar() or Decimal('0')
         stats = {
             'total_amount': total_amount,
             'player_wages': player_wages,
