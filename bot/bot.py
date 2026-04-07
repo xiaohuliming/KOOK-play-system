@@ -346,12 +346,13 @@ def _looks_like_image_bytes(data: bytes) -> bool:
 
 
 def _get_recent_withdrawal_within_3_days(user_id: int):
+    """仅 pending/paid 计入限制，rejected/failed 不限制"""
     window_start = datetime.utcnow() - timedelta(days=3)
     return (
         WithdrawRequest.query
         .filter(WithdrawRequest.user_id == user_id)
         .filter(WithdrawRequest.created_at >= window_start)
-        .filter(~WithdrawRequest.status.in_(['rejected', 'failed']))
+        .filter(WithdrawRequest.status.in_(['pending', 'paid']))
         .order_by(WithdrawRequest.created_at.desc())
         .first()
     )
@@ -705,36 +706,64 @@ async def wallet(msg: Message):
     with app.app_context():
         user = get_or_create_user_by_kook(msg.author)
 
-        if user.role == 'god':
-            content = (
-                f"**{user.nickname or user.username}** 的钱包\n"
-                f"---\n"
-                f"VIP等级: **{user.vip_level}**\n"
-                f"折扣: {user.vip_discount}%\n"
-                f"经验值: {user.experience}\n"
-                f"---\n"
-                f"嗯呢币: **{user.m_coin}**\n"
-                f"赠金: **{user.m_coin_gift}**\n"
-                f"合计可用: **{user.m_coin + user.m_coin_gift}** 嗯呢币"
-            )
-        elif user.role == 'player':
-            content = (
-                f"**{user.player_nickname or user.nickname or user.username}** 的钱包\n"
-                f"---\n"
-                f"小猪粮 (可提现): **{user.m_bean}**\n"
-                f"冻结小猪粮: **{user.m_bean_frozen}**\n"
-                f"---\n"
-                f"使用 `/提现 金额` 申请提现"
-            )
-        else:
-            content = (
-                f"**{user.nickname or user.username}**\n"
-                f"角色: {user.role_name}\n"
-                f"嗯呢币: {user.m_coin} | 赠金: {user.m_coin_gift}\n"
-                f"小猪粮: {user.m_bean} | 冻结: {user.m_bean_frozen}"
-            )
+        display_name = user.player_nickname or user.nickname or user.username
+        total_coin = user.m_coin + user.m_coin_gift
 
-        await msg.reply(content)
+        modules = [
+            {"type": "header", "text": {"type": "plain-text", "content": f"💳 {display_name} 的钱包"}},
+            {"type": "divider"},
+            {
+                "type": "section",
+                "text": {
+                    "type": "kmarkdown",
+                    "content": (
+                        "💰 **嗯呢币**\n"
+                        f"充值余额　**{user.m_coin}**\n"
+                        f"赠　　金　**{user.m_coin_gift}**\n"
+                        f"合计可用　**{total_coin}** 嗯呢币"
+                    ),
+                },
+            },
+        ]
+
+        # ── 小猪粮（陪玩可见，或有余额时可见）──
+        has_bean = user.m_bean > 0 or user.m_bean_frozen > 0
+        if user.has_player_tag or has_bean:
+            total_bean = user.m_bean + user.m_bean_frozen
+            modules.append({"type": "divider"})
+            modules.append({
+                "type": "section",
+                "text": {
+                    "type": "kmarkdown",
+                    "content": (
+                        "🐷 **小猪粮（收益）**\n"
+                        f"可 提 现　**{user.m_bean}**\n"
+                        f"冻 结 中　**{user.m_bean_frozen}**\n"
+                        f"合　　计　**{total_bean}** 小猪粮"
+                    ),
+                },
+            })
+
+        # ── 操作提示 ──
+        if user.has_player_tag:
+            modules.append({"type": "divider"})
+            modules.append({
+                "type": "context",
+                "elements": [
+                    {
+                        "type": "kmarkdown",
+                        "content": "📌 `/提现 金额` 申请提现　·　`/转换 金额` 小猪粮转嗯呢币",
+                    }
+                ],
+            })
+
+        card = [{"type": "card", "theme": "info", "size": "lg", "modules": modules}]
+        try:
+            await msg.reply(json.dumps(card, ensure_ascii=False), type=MessageTypes.CARD)
+        except Exception:
+            # fallback 纯文本
+            fallback = f"{display_name} 的钱包\n嗯呢币: {user.m_coin} | 赠金: {user.m_coin_gift} | 合计: {total_coin}\n小猪粮: {user.m_bean} | 冻结: {user.m_bean_frozen}"
+            await msg.reply(fallback)
 
 
 @bot.command(name='提现')
