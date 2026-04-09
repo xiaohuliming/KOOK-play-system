@@ -64,7 +64,7 @@
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {% for record in online_records %}
       <div class="flex items-center gap-3 p-4 rounded-2xl border border-white/40 dark:border-slate-700/50 bg-white/20 dark:bg-slate-800/20">
-        <img src="{{ record.user.avatar_url }}" alt="" class="w-10 h-10 rounded-full border border-white dark:border-slate-700" />
+        <img src="{{ record.user.avatar_url }}" alt="" class="w-10 h-10 rounded-full border border-white dark:border-slate-700" / loading="lazy" decoding="async">
         <div class="flex-1 min-w-0">
           {% set display_name = record.user.player_nickname or record.user.nickname or record.user.username %}
           <div class="flex items-center gap-2">
@@ -137,7 +137,7 @@
           <tr class="border-b border-white/20 dark:border-slate-700/50 hover:bg-white/20 dark:hover:bg-slate-700/30 transition-colors">
             <td class="py-4">
               <div class="flex items-center gap-2">
-                <img src="{{ record.user.avatar_url }}" alt="" class="w-7 h-7 rounded-full border border-white dark:border-slate-700" />
+                <img src="{{ record.user.avatar_url }}" alt="" class="w-7 h-7 rounded-full border border-white dark:border-slate-700" / loading="lazy" decoding="async">
                 <span class="text-sm font-semibold text-slate-800 dark:text-slate-200">{{ record.user.player_nickname or record.user.nickname or record.user.username }}</span>
               </div>
             </td>

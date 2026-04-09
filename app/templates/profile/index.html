@@ -14,7 +14,7 @@
     <div class="relative group">
       <div class="w-32 h-32 rounded-full p-1 bg-gradient-to-tr from-purple-500 to-blue-500 shadow-lg">
         <div class="w-full h-full rounded-full overflow-hidden bg-white dark:bg-slate-800 border-4 border-white dark:border-slate-800">
-            <img src="{{ current_user.avatar_url }}" alt="Avatar" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+            <img src="{{ current_user.avatar_url }}" alt="Avatar" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" / loading="lazy" decoding="async">
         </div>
       </div>
       <button type="button" onclick="triggerAvatarUpload()" class="absolute bottom-1 right-1 p-2 bg-white dark:bg-slate-800 rounded-full shadow-md border border-slate-100 dark:border-slate-700 text-slate-500 hover:text-purple-600 transition-colors">

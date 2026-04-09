@@ -146,9 +146,15 @@ class User(UserMixin, db.Model):
 
     @property
     def avatar_url(self):
-        """优先使用 KOOK 头像，否则回退到 DiceBear 生成"""
+        """优先使用 KOOK 头像，否则回退到 DiceBear 生成。
+        对 KOOK CDN 追加 ?s=64 以请求小尺寸图片，减少页面加载体积。
+        """
         if self.avatar:
-            return self.avatar
+            url = self.avatar
+            # KOOK CDN 支持 ?s=尺寸 参数
+            if ('img.kookapp.cn' in url or 'img.kaiheila.cn' in url) and '?' not in url:
+                url += '?s=64'
+            return url
         return f'https://api.dicebear.com/7.x/notionists/svg?seed={self.username}&backgroundColor=e8eaf6'
 
     @property

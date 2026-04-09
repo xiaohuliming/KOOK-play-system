@@ -227,7 +227,7 @@ function setupSearch(inputId, dropdownId, hiddenId, selectedId, role) {
               const mainName = role === 'player' ? (u.player_name || u.display) : (u.display || '');
               const kookInfo = u.kook ? `<span class="text-slate-400 text-[11px]">${u.kook}</span>` : '';
               div.innerHTML = `
-                <img src="${u.avatar}" class="w-8 h-8 rounded-full flex-shrink-0" alt="" referrerpolicy="no-referrer">
+                <img src="${u.avatar}" class="w-8 h-8 rounded-full flex-shrink-0" alt="" referrerpolicy="no-referrer" loading="lazy" decoding="async">
                 <div class="min-w-0 flex-1">
                   <div class="text-sm font-medium text-slate-800 dark:text-white truncate">${mainName}</div>
                   <div class="flex items-center gap-2">
@@ -239,7 +239,7 @@ function setupSearch(inputId, dropdownId, hiddenId, selectedId, role) {
               div.addEventListener('click', () => {
                 hidden.value = u.id;
                 input.value = mainName;
-                selectedEl.innerHTML = '<span class="flex items-center gap-2"><img src="' + u.avatar + '" class="w-5 h-5 rounded-full inline" referrerpolicy="no-referrer"> 已选择: ' + mainName + '</span>';
+                selectedEl.innerHTML = '<span class="flex items-center gap-2"><img src="' + u.avatar + '" class="w-5 h-5 rounded-full inline" referrerpolicy="no-referrer"> 已选择: ' + mainName + '</span loading="lazy" decoding="async">';
                 selectedEl.classList.remove('hidden');
                 dropdown.classList.add('hidden');
               });

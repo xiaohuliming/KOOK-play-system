@@ -10,3 +10,4 @@ openpyxl
 pymysql
 APScheduler
 pytz
+Pillow

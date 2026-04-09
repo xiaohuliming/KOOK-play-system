@@ -46,7 +46,7 @@
           <tr class="border-b border-white/20 dark:border-slate-700/50 hover:bg-white/20 dark:hover:bg-slate-700/30 transition-colors text-sm">
             <td class="py-3">
               <div class="flex items-center gap-3">
-                <img src="{{ user.avatar_url }}" class="w-8 h-8 rounded-full" alt="">
+                <img src="{{ user.avatar_url }}" class="w-8 h-8 rounded-full" alt="" loading="lazy" decoding="async">
                 <div>
                   <p class="font-medium text-slate-800 dark:text-white">{{ user.nickname or user.username }}</p>
                   <p class="text-xs text-slate-400">{{ user.username }} · {{ user.user_code }}</p>

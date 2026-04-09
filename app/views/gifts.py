@@ -72,15 +72,16 @@ def index():
     if date_to:
         query = query.filter(GiftOrder.created_at <= date_to + ' 23:59:59')
 
-    # 统计卡片
+    # 统计卡片 —— 基于已筛选的 query，而非全量
+    stats_query = query.filter(GiftOrder.status == 'paid')
     total_amount = db.session.query(func.sum(GiftOrder.total_price)).filter(
-        GiftOrder.status == 'paid'
+        GiftOrder.id.in_(stats_query.with_entities(GiftOrder.id))
     ).scalar() or Decimal('0')
     player_wages = db.session.query(func.sum(GiftOrder.player_earning)).filter(
-        GiftOrder.status == 'paid'
+        GiftOrder.id.in_(stats_query.with_entities(GiftOrder.id))
     ).scalar() or Decimal('0')
     platform_revenue = db.session.query(func.sum(GiftOrder.shop_earning)).filter(
-        GiftOrder.status == 'paid'
+        GiftOrder.id.in_(stats_query.with_entities(GiftOrder.id))
     ).scalar() or Decimal('0')
 
     stats = {

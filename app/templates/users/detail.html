@@ -10,7 +10,7 @@
     <a href="{{ url_for('users.index') }}" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
       <i data-lucide="arrow-left" width="20" height="20"></i>
     </a>
-    <img src="{{ user.avatar_url }}" class="w-12 h-12 rounded-full border-2 border-white dark:border-slate-700 shadow" alt="">
+    <img src="{{ user.avatar_url }}" class="w-12 h-12 rounded-full border-2 border-white dark:border-slate-700 shadow" alt="" loading="lazy" decoding="async">
     <div>
       <h2 class="text-xl font-bold text-slate-800 dark:text-white">{{ user.nickname or user.player_nickname or user.username }}</h2>
       <p class="text-sm text-slate-500">{{ user.role_name }} | ID: {{ user.user_code }}</p>
@@ -620,7 +620,7 @@
           <tr class="border-b border-white/20 dark:border-slate-700/50">
             <td class="py-2 text-slate-800 dark:text-white">
               <div class="flex items-center gap-2">
-                <img src="{{ item.avatar }}" class="w-7 h-7 rounded-full border border-white dark:border-slate-700" alt="">
+                <img src="{{ item.avatar }}" class="w-7 h-7 rounded-full border border-white dark:border-slate-700" alt="" loading="lazy" decoding="async">
                 <span class="font-medium">{{ item.name or '-' }}</span>
               </div>
             </td>

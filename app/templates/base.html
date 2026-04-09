@@ -102,15 +102,15 @@
   <div class="fixed top-0 right-0 w-[500px] h-[500px] rounded-full -z-10 pointer-events-none" style="background:radial-gradient(circle,rgba(96,165,250,0.12) 0%,transparent 70%);"></div>
   <div class="fixed bottom-0 left-20 w-[500px] h-[500px] rounded-full -z-10 pointer-events-none" style="background:radial-gradient(circle,rgba(244,114,182,0.12) 0%,transparent 70%);"></div>
 
-  <!-- 移动端抽屉遮罩 -->
-  <div id="mobile-overlay" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 hidden opacity-0 md:hidden" onclick="closeMobileDrawer()"></div>
+  <!-- 移动端抽屉遮罩 (去掉 backdrop-blur 以减少 GPU 开销) -->
+  <div id="mobile-overlay" class="fixed inset-0 bg-black/50 z-40 hidden opacity-0 md:hidden" onclick="closeMobileDrawer()"></div>
 
   <!-- 移动端侧边栏抽屉 -->
-  <aside id="mobile-drawer" class="fixed top-0 left-0 bottom-0 w-72 z-50 flex flex-col bg-[#f4f5f7]/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl drawer-closed md:hidden overflow-y-auto">
+  <aside id="mobile-drawer" class="fixed top-0 left-0 bottom-0 w-72 z-50 flex flex-col bg-[#f4f5f7] dark:bg-slate-900 shadow-2xl drawer-closed md:hidden overflow-y-auto">
     <div class="flex items-center justify-between px-5 py-5 flex-shrink-0">
       <div class="flex items-center gap-3">
         <div class="w-10 h-10 rounded-2xl overflow-hidden border border-white/70 dark:border-slate-700/70 shadow-lg bg-white">
-          <img src="{{ url_for('static', filename='img/site-logo.png') }}" alt="Logo" class="w-full h-full object-cover">
+          <img src="{{ url_for('static', filename='img/site-logo.png') }}" alt="Logo" class="w-full h-full object-cover" loading="lazy" decoding="async">
         </div>
         <span class="text-lg font-semibold text-slate-800 dark:text-white">嗯呢呗电竞</span>
       </div>
@@ -183,7 +183,7 @@
     <aside class="w-64 flex-shrink-0 flex-col hidden md:flex md:sticky md:top-0 md:h-screen md:overflow-y-auto">
       <div class="flex items-center gap-3 px-6 py-8 flex-shrink-0">
         <div class="w-11 h-11 rounded-2xl overflow-hidden border border-white/70 dark:border-slate-700/70 shadow-lg shadow-slate-300/30 dark:shadow-black/20 bg-white">
-          <img src="{{ url_for('static', filename='img/site-logo.png') }}" alt="嗯呢呗电竞 Logo" class="w-full h-full object-cover">
+          <img src="{{ url_for('static', filename='img/site-logo.png') }}" alt="嗯呢呗电竞 Logo" class="w-full h-full object-cover" loading="lazy" decoding="async">
         </div>
         <span class="text-xl font-semibold tracking-tight text-slate-800 dark:text-white">嗯呢呗电竞</span>
       </div>
@@ -381,7 +381,7 @@
           {% endif %}
 
           <button class="w-10 h-10 rounded-full overflow-hidden border-2 border-white dark:border-slate-700 shadow-sm hover:scale-105 transition-transform flex-shrink-0" onclick="location.href='{{ url_for('profile.index') }}'">
-            <img src="{{ current_user.avatar_url if current_user.is_authenticated else 'https://api.dicebear.com/7.x/notionists/svg?seed=Guest&backgroundColor=e8eaf6' }}" alt="Avatar" class="w-full h-full object-cover" />
+            <img src="{{ current_user.avatar_url if current_user.is_authenticated else 'https://api.dicebear.com/7.x/notionists/svg?seed=Guest&backgroundColor=e8eaf6' }}" alt="Avatar" class="w-full h-full object-cover" loading="lazy" decoding="async">
           </button>
           
           {% if current_user.is_authenticated %}
@@ -422,7 +422,7 @@
   {% if current_user.is_authenticated %}
   <!-- 助理小呢 浮动按钮 -->
   <button id="assistant-fab" onclick="toggleAssistantPanel()" class="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 shadow-lg shadow-purple-500/30 hover:shadow-xl hover:shadow-purple-500/40 hover:scale-110 transition-colors duration-200 flex items-center justify-center group" title="助理小呢">
-    <img src="{{ url_for('static', filename='img/site-logo.png') }}" alt="助理小呢" class="w-9 h-9 rounded-full border-2 border-white/80 group-hover:border-white transition-colors">
+    <img src="{{ url_for('static', filename='img/site-logo.png') }}" alt="助理小呢" class="w-9 h-9 rounded-full border-2 border-white/80 group-hover:border-white transition-colors" loading="lazy" decoding="async">
     <span class="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white animate-pulse"></span>
   </button>
 
@@ -433,7 +433,7 @@
       <!-- 头部 -->
       <div class="flex items-center gap-3 px-5 py-4 border-b border-slate-200/50 dark:border-slate-700/50 flex-shrink-0" style="background:linear-gradient(135deg,rgba(139,92,246,0.1),rgba(99,102,241,0.08));">
         <div class="relative">
-          <img src="{{ url_for('static', filename='img/site-logo.png') }}" class="w-10 h-10 rounded-full border-2 border-purple-200 shadow-sm">
+          <img src="{{ url_for('static', filename='img/site-logo.png') }}" class="w-10 h-10 rounded-full border-2 border-purple-200 shadow-sm" loading="lazy" decoding="async">
           <span class="absolute bottom-0 right-0 w-3 h-3 bg-green-400 rounded-full border-2 border-white"></span>
         </div>
         <div class="flex-1">
@@ -452,7 +452,7 @@
       <div id="assistant-messages" class="flex-1 overflow-y-auto px-4 py-4 space-y-4 custom-scrollbar" style="max-height:min(420px,55vh);">
         <!-- 欢迎消息 -->
         <div class="flex gap-2.5 items-start">
-          <img src="{{ url_for('static', filename='img/site-logo.png') }}" class="w-7 h-7 rounded-full border border-purple-200 flex-shrink-0 mt-0.5">
+          <img src="{{ url_for('static', filename='img/site-logo.png') }}" class="w-7 h-7 rounded-full border border-purple-200 flex-shrink-0 mt-0.5" loading="lazy" decoding="async">
           <div class="bg-white dark:bg-slate-800 rounded-2xl rounded-tl-md px-4 py-2.5 max-w-[85%] shadow-sm border border-slate-100 dark:border-slate-700">
             <p class="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">你好呀~ 我是<b>助理小呢</b> 🎮✨<br>有什么可以帮你的吗？可以问我订单、余额、平台数据等问题哦~</p>
           </div>
@@ -476,6 +476,14 @@
   <script>
     // 初始化 Lucide Icons
     lucide.createIcons();
+
+    // 全局: 图片加载失败时用默认头像替代（避免占位空白）
+    document.addEventListener('error', function(e) {
+      if (e.target.tagName === 'IMG' && !e.target.dataset.fallback) {
+        e.target.dataset.fallback = '1';
+        e.target.src = 'https://api.dicebear.com/7.x/notionists/svg?seed=default&backgroundColor=e8eaf6';
+      }
+    }, true);
 
     // 移动端抽屉菜单
     function openMobileDrawer() {
@@ -674,7 +682,7 @@
         div.innerHTML = '<div class="bg-gradient-to-br from-purple-500 to-indigo-600 text-white rounded-2xl rounded-tr-md px-4 py-2.5 max-w-[85%] shadow-sm"><p class="text-sm leading-relaxed">' + escapeHtml(text) + '</p></div>';
       } else {
         div.className = 'flex gap-2.5 items-start';
-        div.innerHTML = '<img src="' + ASSISTANT_LOGO + '" class="w-7 h-7 rounded-full border border-purple-200 flex-shrink-0 mt-0.5"><div class="bg-white dark:bg-slate-800 rounded-2xl rounded-tl-md px-4 py-2.5 max-w-[85%] shadow-sm border border-slate-100 dark:border-slate-700"><div class="text-sm text-slate-700 dark:text-slate-200 leading-relaxed assistant-reply">' + formatReply(text) + '</div></div>';
+        div.innerHTML = '<img src="' + ASSISTANT_LOGO + '" class="w-7 h-7 rounded-full border border-purple-200 flex-shrink-0 mt-0.5"><div class="bg-white dark:bg-slate-800 rounded-2xl rounded-tl-md px-4 py-2.5 max-w-[85%] shadow-sm border border-slate-100 dark:border-slate-700"><div class="text-sm text-slate-700 dark:text-slate-200 leading-relaxed assistant-reply">' + formatReply(text) + '</div></div loading="lazy" decoding="async">';
       }
       box.appendChild(div);
       scrollAssistantToBottom();
@@ -687,7 +695,7 @@
       var div = document.createElement('div');
       div.className = 'flex gap-2.5 items-start';
       div.id = 'typing-indicator';
-      div.innerHTML = '<img src="' + ASSISTANT_LOGO + '" class="w-7 h-7 rounded-full border border-purple-200 flex-shrink-0 mt-0.5"><div class="bg-white dark:bg-slate-800 rounded-2xl rounded-tl-md px-4 py-3 shadow-sm border border-slate-100 dark:border-slate-700"><div class="flex gap-1"><span class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay:0s"></span><span class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay:0.15s"></span><span class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay:0.3s"></span></div></div>';
+      div.innerHTML = '<img src="' + ASSISTANT_LOGO + '" class="w-7 h-7 rounded-full border border-purple-200 flex-shrink-0 mt-0.5"><div class="bg-white dark:bg-slate-800 rounded-2xl rounded-tl-md px-4 py-3 shadow-sm border border-slate-100 dark:border-slate-700"><div class="flex gap-1"><span class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay:0s"></span><span class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay:0.15s"></span><span class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay:0.3s"></span></div></div loading="lazy" decoding="async">';
       box.appendChild(div);
       scrollAssistantToBottom();
       return div;

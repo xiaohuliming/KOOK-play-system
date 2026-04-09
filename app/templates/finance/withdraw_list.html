@@ -83,7 +83,7 @@
             <td class="px-6 py-4">
               <div class="flex items-center gap-3">
                 <div class="w-8 h-8 rounded-full bg-slate-200 overflow-hidden">
-                    <img src="{{ wr.user.avatar_url }}" alt="Avatar" class="w-full h-full object-cover" />
+                    <img src="{{ wr.user.avatar_url }}" alt="Avatar" class="w-full h-full object-cover" / loading="lazy" decoding="async">
                 </div>
                 <div>
                     {% set applicant_name = wr.user.player_nickname or wr.user.kook_username or wr.user.nickname or wr.user.username %}

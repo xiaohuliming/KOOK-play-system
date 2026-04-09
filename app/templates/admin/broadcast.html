@@ -71,7 +71,7 @@
             </td>
             <td class="py-3">
               {% if c.image_url %}
-              <img src="{{ preview_image_url }}" class="w-10 h-10 rounded object-cover" title="{{ c.image_url }}">
+              <img src="{{ preview_image_url }}" class="w-10 h-10 rounded object-cover" title="{{ c.image_url }}" loading="lazy" decoding="async">
               {% else %}
               <span class="text-slate-400 text-xs">-</span>
               {% endif %}
@@ -507,7 +507,7 @@
             <i data-lucide="image-plus" width="26" height="26" class="mx-auto text-slate-400 mb-2 group-hover:text-purple-500 transition-colors"></i>
             <span class="text-xs text-slate-500 group-hover:text-purple-500 transition-colors">点击上传图片/动图</span>
           </div>
-          <img id="image-preview-img" src="#" alt="图片预览" class="hidden max-h-40 mx-auto rounded-lg border border-slate-200 dark:border-slate-700 object-cover">
+          <img id="image-preview-img" src="#" alt="图片预览" class="hidden max-h-40 mx-auto rounded-lg border border-slate-200 dark:border-slate-700 object-cover" loading="lazy" decoding="async">
         </label>
         <p id="image-preview-tip" class="mt-2 text-[11px] text-slate-400">支持 `png/jpg/jpeg/gif`，不重新上传时会保留当前图片。</p>
         <label id="f_remove_image_wrap" class="mt-2 hidden items-center gap-2 text-xs text-slate-500">

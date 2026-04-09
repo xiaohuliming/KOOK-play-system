@@ -56,7 +56,7 @@
           {% for u in users.items %}
           <tr class="border-b border-white/20 dark:border-slate-700/50 hover:bg-white/20 dark:hover:bg-slate-700/30 transition-colors text-sm">
             <td class="py-3">
-              <img src="{{ u.avatar_url }}" class="w-8 h-8 rounded-full" alt="">
+              <img src="{{ u.avatar_url }}" class="w-8 h-8 rounded-full" alt="" loading="lazy" decoding="async">
             </td>
             <td class="py-3">
               {% if u.kook_username or u.kook_id %}
