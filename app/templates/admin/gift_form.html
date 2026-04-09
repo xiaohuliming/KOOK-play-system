@@ -18,7 +18,7 @@
         <label class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 block">礼物图片</label>
         {% if gift and gift.image %}
         <div class="mb-2">
-          <img src="{{ url_for('static', filename=gift.image) }}" class="w-16 h-16 rounded-xl object-cover" alt="" loading="lazy" decoding="async">
+          <img src="{{ url_for('static', filename=gift.image_thumb) }}" class="w-16 h-16 rounded-xl object-cover" alt="" loading="lazy" decoding="async">
         </div>
         {% endif %}
         <input type="file" name="image" accept="image/*"

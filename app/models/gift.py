@@ -28,8 +28,22 @@ class Gift(db.Model):
     def is_deleted(self):
         return self.deleted_at is not None
 
-    def __repr__(self):
-        return f'<Gift {self.name}>'
+    @property
+    def image_thumb(self):
+        """缩略图路径（用于网页显示），不存在则回退到原图。"""
+        if not self.image:
+            return self.image
+        from app.services.upload_service import get_thumb_path
+        import os
+        from flask import current_app
+        thumb_rel = get_thumb_path(self.image)
+        # 检查缩略图文件是否存在
+        thumb_abs = os.path.join(current_app.config.get('UPLOAD_FOLDER', ''), '..', thumb_rel) if thumb_rel else ''
+        static_dir = os.path.join(current_app.root_path, 'static')
+        thumb_full = os.path.join(static_dir, thumb_rel) if thumb_rel else ''
+        if thumb_full and os.path.exists(thumb_full):
+            return thumb_rel
+        return self.image  # 缩略图不存在, 回退原图
 
 
 class GiftOrder(db.Model):
