@@ -56,17 +56,6 @@
         <label for="status" class="text-sm font-medium text-slate-700 dark:text-slate-300">开启</label>
       </div>
 
-      {# VIP折扣 #}
-      <div class="rounded-xl bg-slate-50 dark:bg-slate-800/50 p-4">
-        <input type="hidden" name="vip_discount_enabled_present" value="1">
-        <label class="flex items-center gap-3">
-          <input type="checkbox" name="vip_discount_enabled" id="vip_discount_enabled" {% if gift and gift.vip_discount_enabled %}checked{% endif %}
-            class="w-4 h-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500">
-          <span class="text-sm font-medium text-slate-700 dark:text-slate-300">参与老板VIP折扣</span>
-        </label>
-        <p class="text-xs text-slate-400 mt-2">默认不参与；开启后老板送这个礼物时按老板VIP折扣实付，陪玩收益仍按礼物原价计算。</p>
-      </div>
-
       {# KOOK 标签自动授予 #}
       {% if kook_roles is defined and kook_roles %}
       <div class="border-t border-slate-200 dark:border-slate-700 pt-5 mt-2">

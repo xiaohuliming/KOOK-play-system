@@ -15,12 +15,6 @@ from app.services import upload_service
 gift_admin_bp = Blueprint('gift_admin', __name__)
 
 
-def _form_vip_discount_enabled(default=False):
-    if 'vip_discount_enabled_present' in request.form:
-        return 'vip_discount_enabled' in request.form
-    return bool(default)
-
-
 def _get_kook_roles():
     """安全获取 KOOK 角色列表，失败时返回空列表"""
     try:
@@ -56,7 +50,6 @@ def _ensure_gift_sort_order_column():
     need_sort_order = 'sort_order' not in cols
     need_deleted_at = 'deleted_at' not in cols
     need_crown_broadcast_template = 'crown_broadcast_template' not in cols
-    need_vip_discount_enabled = 'vip_discount_enabled' not in cols
 
     if need_deleted_at:
         try:
@@ -81,14 +74,6 @@ def _ensure_gift_sort_order_column():
         except Exception as e:
             db.session.rollback()
             return False, f'补齐 gifts.crown_broadcast_template 字段失败: {e}'
-
-    if need_vip_discount_enabled:
-        try:
-            db.session.execute(text('ALTER TABLE gifts ADD COLUMN vip_discount_enabled BOOLEAN NOT NULL DEFAULT 0'))
-            db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            return False, f'补齐 gifts.vip_discount_enabled 字段失败: {e}'
 
     if 'sender_kook_role_id' not in cols:
         try:
@@ -140,7 +125,6 @@ def add():
         price = request.form.get('price', '0')
         gift_type = request.form.get('gift_type', 'standard')
         status = request.form.get('status') == 'on'
-        vip_discount_enabled = _form_vip_discount_enabled(False)
 
         if not name:
             flash('请输入礼物名称', 'error')
@@ -167,7 +151,6 @@ def add():
             gift = Gift(
                 name=name, price=price, gift_type=gift_type,
                 status=status, image=image_path,
-                vip_discount_enabled=vip_discount_enabled,
                 sort_order=1,
                 sender_kook_role_id=request.form.get('sender_kook_role_id', '').strip() or None,
                 receiver_kook_role_id=request.form.get('receiver_kook_role_id', '').strip() or None,
@@ -211,7 +194,6 @@ def edit(gift_id):
 
         gift.gift_type = request.form.get('gift_type', 'standard')
         gift.status = request.form.get('status') == 'on'
-        gift.vip_discount_enabled = _form_vip_discount_enabled(gift.vip_discount_enabled)
 
         image_path, upload_error = _handle_image_upload()
         if upload_error:

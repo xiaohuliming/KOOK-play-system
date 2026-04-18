@@ -12,6 +12,7 @@ from app.services.log_service import log_operation
 from flask_login import current_user
 
 NO_VIP_DISCOUNT = Decimal('100')
+VIP_DISCOUNT_EXEMPT_ORDER_TYPES = {'training'}  # 代练/代肝订单不参与老板 VIP 折扣
 STAFF_COMMISSION_NORMAL = Decimal('1')      # 常规陪玩: 1元/单
 STAFF_COMMISSION_RATE = Decimal('0.01')     # 护航/代练/礼物: 1%
 
@@ -44,19 +45,9 @@ def _get_boss_discount_percent(boss):
     return discount.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
 
-def _project_item_uses_vip_discount(project_item):
-    """子项目是否参与老板 VIP 折扣；旧数据缺字段时按类型兜底。"""
-    if not project_item:
-        return True
-    value = getattr(project_item, 'vip_discount_enabled', None)
-    if value is not None:
-        return bool(value)
-    return str(getattr(project_item, 'project_type', '') or '').lower() != 'training'
-
-
-def _get_order_discount_percent(boss, project_item=None):
-    """根据子项目开关获取折扣。"""
-    if not _project_item_uses_vip_discount(project_item):
+def _get_order_discount_percent(boss, order_type='normal'):
+    """根据订单类型获取折扣；部分类型固定不参与 VIP 折扣。"""
+    if str(order_type or '').lower() in VIP_DISCOUNT_EXEMPT_ORDER_TYPES:
         return NO_VIP_DISCOUNT
     return _get_boss_discount_percent(boss)
 
@@ -373,7 +364,7 @@ def create_normal_order(boss, player, project_item, price_tier, staff,
     extra_price_dec = Decimal(str(extra_price))
     addon_price_dec = Decimal(str(addon_price))
     commission_rate = player.commission_rate if player.commission_rate is not None else project_item.commission_rate
-    boss_discount = _get_order_discount_percent(boss, project_item)
+    boss_discount = _get_order_discount_percent(boss, 'normal')
 
     # 创建前余额校验：按 1 小时/局的最低可扣金额预校验
     min_subtotal = (base_price + extra_price_dec + addon_price_dec).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
@@ -422,7 +413,7 @@ def create_escort_order(boss, player, project_item, price_tier, staff,
     base_price = Decimal(str(project_item.get_price_by_tier(price_tier) or 0))
     commission_rate = player.commission_rate if player.commission_rate is not None else project_item.commission_rate
     project_type = project_item.project_type or 'escort'
-    boss_discount = _get_order_discount_percent(boss, project_item)
+    boss_discount = _get_order_discount_percent(boss, project_type)
     unit_price = base_price + Decimal(str(extra_price))
     duration_dec = Decimal(str(duration))
     subtotal = unit_price * duration_dec + Decimal(str(addon_price))
@@ -514,7 +505,7 @@ def report_order(order, duration_hours, operator_id=None):
 
     unit_price = Decimal(str(order.base_price)) + Decimal(str(order.extra_price))
     subtotal = unit_price * duration + Decimal(str(order.addon_price))
-    boss_discount = _get_order_discount_percent(order.boss, order.project_item)
+    boss_discount = _get_order_discount_percent(order.boss, order.order_type)
     total_price, player_earning, shop_earning = _calc_order_amounts_with_discount_subsidy(
         subtotal=subtotal,
         commission_rate=order.commission_rate,

@@ -34,7 +34,6 @@ class ProjectItem(db.Model):
     commission_rate = db.Column(db.Numeric(5, 2), default=80.00)  # 佣金比例 (默认80%)
     billing_type = db.Column(db.String(20), default='hour')       # hour=按小时, round=按局
     project_type = db.Column(db.String(20), default='normal')     # normal=陪玩, escort=护航, training=代练
-    vip_discount_enabled = db.Column(db.Boolean, default=True, nullable=False)  # 是否参与老板VIP折扣
 
     sort_order = db.Column(db.Integer, default=0)
     status = db.Column(db.Boolean, default=True)

@@ -28,7 +28,6 @@
             <th class="pb-3 font-medium">名称</th>
             <th class="pb-3 font-medium">价格</th>
             <th class="pb-3 font-medium">类型</th>
-            <th class="pb-3 font-medium">VIP折扣</th>
             <th class="pb-3 font-medium">状态</th>
             <th class="pb-3 font-medium">播报模板</th>
             <th class="pb-3 font-medium">KOOK标签</th>
@@ -65,13 +64,6 @@
               <span class="px-2 py-1 bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300 text-xs rounded-full font-medium">冠名</span>
               {% else %}
               <span class="px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 text-xs rounded-full font-medium">标准</span>
-              {% endif %}
-            </td>
-            <td class="py-3">
-              {% if gift.vip_discount_enabled %}
-              <span class="px-2 py-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 text-xs rounded-full font-medium">参与</span>
-              {% else %}
-              <span class="px-2 py-1 bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300 text-xs rounded-full font-medium">不参与</span>
               {% endif %}
             </td>
             <td class="py-3">
@@ -121,7 +113,7 @@
             </td>
           </tr>
           {% else %}
-          <tr><td colspan="10" class="py-8 text-center text-slate-500">暂无礼物数据</td></tr>
+          <tr><td colspan="9" class="py-8 text-center text-slate-500">暂无礼物数据</td></tr>
           {% endfor %}
         </tbody>
       </table>

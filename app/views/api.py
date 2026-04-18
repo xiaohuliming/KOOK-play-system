@@ -30,7 +30,6 @@ def projects_cascade():
                 'name': item.name,
                 'billing_type': item.billing_type,
                 'project_type': item.project_type,
-                'vip_discount_enabled': bool(item.vip_discount_enabled),
                 'commission_rate': float(item.commission_rate),
                 'prices': item.tier_prices,
             })
@@ -91,7 +90,6 @@ def users_search():
             'avatar': u.avatar_url,
             'player_name': player_name,
             'boss_name': boss_name,
-            'vip_discount': float(u.vip_discount or 100),
         }
         # 显示名称按“搜索场景角色”优先，避免多身份用户被默认老板标签覆盖
         if role == 'boss':
