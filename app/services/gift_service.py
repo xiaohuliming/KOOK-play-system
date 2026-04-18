@@ -6,6 +6,7 @@ from app.models.gift import Gift, GiftOrder
 from app.models.user import User
 from app.models.finance import BalanceLog, CommissionLog
 from app.services.log_service import log_operation
+from app.services.order_service import _get_boss_discount_percent
 
 
 def _quantize_money(value):
@@ -15,28 +16,33 @@ def _quantize_money(value):
 def send_gift(boss, player, gift, quantity, staff=None):
     """
     赠送礼物:
-    1. 扣老板嗯呢币余额
-    2. 发放陪玩佣金(小猪粮)
-    3. 冠名礼物自动冻结
+    1. 根据礼物配置决定是否套用老板VIP折扣
+    2. 扣老板嗯呢币余额
+    3. 发放陪玩佣金(小猪粮)
+    4. 冠名礼物自动冻结
     """
     quantity = int(quantity)
     if quantity <= 0:
         return None, '数量必须大于0'
 
     unit_price = Decimal(str(gift.price))
-    total_price = unit_price * quantity
+    subtotal = unit_price * quantity
+    boss_discount = _get_boss_discount_percent(boss) if gift.vip_discount_enabled else Decimal('100')
+    total_price = (subtotal * boss_discount / Decimal('100')).quantize(
+        Decimal('0.01'), rounding=ROUND_HALF_UP
+    )
 
     # 验证余额
     total_available = boss.m_coin + boss.m_coin_gift
     if total_available < total_price:
         return None, '老板余额不足'
 
-    # 计算分成 (默认80%, 陪玩自定义优先)
+    # 计算分成 (默认80%, 陪玩自定义优先；VIP折扣由店铺承担)
     commission_rate = Decimal(str(player.commission_rate)) if player.commission_rate is not None else Decimal('80')
-    player_earning = (total_price * commission_rate / Decimal('100')).quantize(
+    player_earning = (subtotal * commission_rate / Decimal('100')).quantize(
         Decimal('0.01'), rounding=ROUND_HALF_UP
     )
-    shop_earning = total_price - player_earning
+    shop_earning = (total_price - player_earning).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
     # 创建礼物订单
     gift_order = GiftOrder(
@@ -73,6 +79,9 @@ def send_gift(boss, player, gift, quantity, staff=None):
     gift_order.boss_paid_gift = gift_deducted
 
     receiver_name = player.player_nickname or player.nickname or player.username
+    discount_note = ''
+    if gift.vip_discount_enabled and boss_discount < Decimal('100'):
+        discount_note = f' (VIP折扣:{boss_discount}%)'
 
     # 记录消费日志
     balance_log = BalanceLog(
@@ -80,7 +89,7 @@ def send_gift(boss, player, gift, quantity, staff=None):
         change_type='gift_send',
         amount=-total_price,
         balance_after=boss.m_coin + boss.m_coin_gift,
-        reason=f'赠送 {gift.name} x{quantity} 给 {receiver_name}'
+        reason=f'赠送 {gift.name} x{quantity} 给 {receiver_name}{discount_note}'
     )
     db.session.add(balance_log)
 

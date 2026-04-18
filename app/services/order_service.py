@@ -44,6 +44,23 @@ def _get_boss_discount_percent(boss):
     return discount.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
 
+def _project_item_uses_vip_discount(project_item):
+    """子项目是否参与老板 VIP 折扣；旧数据缺字段时按类型兜底。"""
+    if not project_item:
+        return True
+    value = getattr(project_item, 'vip_discount_enabled', None)
+    if value is not None:
+        return bool(value)
+    return str(getattr(project_item, 'project_type', '') or '').lower() != 'training'
+
+
+def _get_order_discount_percent(boss, project_item=None):
+    """根据子项目开关获取折扣。"""
+    if not _project_item_uses_vip_discount(project_item):
+        return NO_VIP_DISCOUNT
+    return _get_boss_discount_percent(boss)
+
+
 def _calc_order_amounts_with_discount_subsidy(subtotal, commission_rate, discount_percent):
     """
     计算订单金额（老板折扣由店铺承担）：
@@ -356,7 +373,7 @@ def create_normal_order(boss, player, project_item, price_tier, staff,
     extra_price_dec = Decimal(str(extra_price))
     addon_price_dec = Decimal(str(addon_price))
     commission_rate = player.commission_rate if player.commission_rate is not None else project_item.commission_rate
-    boss_discount = _get_boss_discount_percent(boss)
+    boss_discount = _get_order_discount_percent(boss, project_item)
 
     # 创建前余额校验：按 1 小时/局的最低可扣金额预校验
     min_subtotal = (base_price + extra_price_dec + addon_price_dec).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
@@ -404,7 +421,8 @@ def create_escort_order(boss, player, project_item, price_tier, staff,
     """
     base_price = Decimal(str(project_item.get_price_by_tier(price_tier) or 0))
     commission_rate = player.commission_rate if player.commission_rate is not None else project_item.commission_rate
-    boss_discount = _get_boss_discount_percent(boss)
+    project_type = project_item.project_type or 'escort'
+    boss_discount = _get_order_discount_percent(boss, project_item)
     unit_price = base_price + Decimal(str(extra_price))
     duration_dec = Decimal(str(duration))
     subtotal = unit_price * duration_dec + Decimal(str(addon_price))
@@ -436,7 +454,7 @@ def create_escort_order(boss, player, project_item, price_tier, staff,
         total_price=total_price,
         player_earning=player_earning,
         shop_earning=shop_earning,
-        order_type=project_item.project_type,
+        order_type=project_type,
         duration=duration_dec,
         status='pending_pay',
         fill_time=now,
@@ -496,7 +514,7 @@ def report_order(order, duration_hours, operator_id=None):
 
     unit_price = Decimal(str(order.base_price)) + Decimal(str(order.extra_price))
     subtotal = unit_price * duration + Decimal(str(order.addon_price))
-    boss_discount = _get_boss_discount_percent(order.boss)
+    boss_discount = _get_order_discount_percent(order.boss, order.project_item)
     total_price, player_earning, shop_earning = _calc_order_amounts_with_discount_subsidy(
         subtotal=subtotal,
         commission_rate=order.commission_rate,

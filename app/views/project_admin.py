@@ -10,6 +10,17 @@ from app.services.log_service import log_operation
 project_admin_bp = Blueprint('project_admin', __name__, template_folder='../templates')
 
 
+def _default_item_vip_discount_enabled(project_type):
+    """新增子项目默认值：代练/代肝默认不参与，其他类型默认参与。"""
+    return (project_type or 'normal') != 'training'
+
+
+def _form_vip_discount_enabled(default=True):
+    if 'vip_discount_enabled_present' in request.form:
+        return 'vip_discount_enabled' in request.form
+    return bool(default)
+
+
 @project_admin_bp.route('/')
 @login_required
 @admin_required
@@ -88,6 +99,7 @@ def add_item(project_id):
         flash('子项目名称不能为空', 'error')
         return redirect(request.referrer or url_for('project_admin.index'))
 
+    project_type = request.form.get('project_type', 'normal')
     item = ProjectItem(
         project_id=project.id,
         name=name,
@@ -99,7 +111,8 @@ def add_item(project_id):
         price_devil=Decimal(request.form.get('price_devil', request.form.get('price_peak', request.form.get('price_pro', '0'))) or '0'),
         commission_rate=Decimal(request.form.get('commission_rate', '80') or '80'),
         billing_type=request.form.get('billing_type', 'hour'),
-        project_type=request.form.get('project_type', 'normal'),
+        project_type=project_type,
+        vip_discount_enabled=_form_vip_discount_enabled(_default_item_vip_discount_enabled(project_type)),
         sort_order=request.form.get('sort_order', 0, type=int),
     )
     db.session.add(item)
@@ -127,6 +140,7 @@ def edit_item(item_id):
     item.commission_rate = Decimal(request.form.get('commission_rate', '80') or '80')
     item.billing_type = request.form.get('billing_type', 'hour')
     item.project_type = request.form.get('project_type', 'normal')
+    item.vip_discount_enabled = _form_vip_discount_enabled(item.vip_discount_enabled)
     item.sort_order = request.form.get('sort_order', 0, type=int)
     item.status = 'status' in request.form
     db.session.commit()

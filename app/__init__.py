@@ -52,6 +52,7 @@ def create_app(config_class=Config, start_background_tasks=True):
     migrate.init_app(app, db)
     login_manager.init_app(app)
     _ensure_gift_schema_compat(app)
+    _ensure_project_schema_compat(app)
     _ensure_broadcast_schema_compat(app)
 
     # 确保 app_configs 表存在
@@ -264,6 +265,11 @@ def _ensure_gift_schema_compat(app):
                 altered = True
                 added_columns.append('crown_broadcast_template')
 
+            if 'vip_discount_enabled' not in cols:
+                db.session.execute(text('ALTER TABLE gifts ADD COLUMN vip_discount_enabled BOOLEAN NOT NULL DEFAULT 0'))
+                altered = True
+                added_columns.append('vip_discount_enabled')
+
             if altered:
                 db.session.commit()
                 app.logger.info('[Schema] gifts 兼容字段已补齐: %s', ','.join(added_columns))
@@ -285,6 +291,31 @@ def _ensure_gift_schema_compat(app):
         except Exception as e:
             db.session.rollback()
             app.logger.warning(f'[Schema] gifts 兼容字段补齐失败: {e}')
+
+
+def _ensure_project_schema_compat(app):
+    """兼容旧库 project_items 表字段（vip_discount_enabled）。"""
+    with app.app_context():
+        try:
+            inspector = inspect(db.engine)
+            tables = set(inspector.get_table_names())
+            if 'project_items' not in tables:
+                return
+
+            cols = {c.get('name') for c in inspector.get_columns('project_items')}
+            if 'vip_discount_enabled' in cols:
+                return
+
+            db.session.execute(text('ALTER TABLE project_items ADD COLUMN vip_discount_enabled BOOLEAN NOT NULL DEFAULT 1'))
+            db.session.execute(text(
+                "UPDATE project_items SET vip_discount_enabled = 0 "
+                "WHERE LOWER(COALESCE(project_type, 'normal')) = 'training'"
+            ))
+            db.session.commit()
+            app.logger.info('[Schema] project_items 兼容字段已补齐: vip_discount_enabled')
+        except Exception as e:
+            db.session.rollback()
+            app.logger.warning(f'[Schema] project_items 兼容字段补齐失败: {e}')
 
 
 def _ensure_broadcast_schema_compat(app):
