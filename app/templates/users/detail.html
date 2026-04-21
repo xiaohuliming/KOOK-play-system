@@ -29,10 +29,28 @@
     </div>
     <div class="glass-card p-5 flex items-center gap-4">
       <div class="p-3 rounded-2xl bg-green-500/10 text-green-500"><i data-lucide="coins" width="24" height="24"></i></div>
-      <div>
+      <div class="min-w-0 flex-1">
         <p class="text-sm text-slate-500 dark:text-slate-400">小猪粮佣金</p>
         <p class="text-2xl font-bold text-slate-800 dark:text-white">{{ "%.2f"|format(user.m_bean) }}</p>
-        <p class="text-xs text-slate-400">冻结: {{ "%.2f"|format(user.m_bean_frozen) }}</p>
+        {% if frozen_breakdown.total > 0 or frozen_breakdown.has_other %}
+        <div class="mt-2 text-xs">
+          <p class="text-amber-600 dark:text-amber-400 font-medium">冻结: {{ "%.2f"|format(frozen_breakdown.total) }}</p>
+          <div class="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-slate-500 dark:text-slate-400">
+            <span>提现审核中</span>
+            <span class="text-right text-slate-700 dark:text-slate-200">{{ "%.2f"|format(frozen_breakdown.pending_withdraw) }}</span>
+            <span>订单冻结</span>
+            <span class="text-right text-slate-700 dark:text-slate-200">{{ "%.2f"|format(frozen_breakdown.order) }}</span>
+            <span>礼物冻结</span>
+            <span class="text-right text-slate-700 dark:text-slate-200">{{ "%.2f"|format(frozen_breakdown.gift) }}</span>
+            {% if frozen_breakdown.has_other %}
+            <span>其他/历史差异</span>
+            <span class="text-right {% if frozen_breakdown.other < 0 %}text-red-600 dark:text-red-400{% else %}text-slate-700 dark:text-slate-200{% endif %}">{{ "%.2f"|format(frozen_breakdown.other) }}</span>
+            {% endif %}
+          </div>
+        </div>
+        {% else %}
+        <p class="text-xs text-slate-400">冻结: 0.00</p>
+        {% endif %}
       </div>
     </div>
     <div class="glass-card p-5 flex items-center gap-4">
