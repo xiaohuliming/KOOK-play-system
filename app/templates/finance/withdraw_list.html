@@ -117,16 +117,16 @@
                     {% if wr.payment_image %}
                     {% set imgs = wr.payment_image.split('|') %}
                     {% if imgs|length >= 2 %}
-                    <a href="{{ url_for('static', filename=imgs[0]) }}" target="_blank" class="text-xs text-purple-600 hover:text-purple-700 flex items-center gap-1">
+                    <a href="{{ url_for('finance.view_withdraw_payment_code', request_id=wr.id, slot='wechat') }}" target="_blank" class="text-xs text-purple-600 hover:text-purple-700 flex items-center gap-1">
                         <i data-lucide="image" width="12" height="12"></i>
                         查看微信收款码
                     </a>
-                    <a href="{{ url_for('static', filename=imgs[1]) }}" target="_blank" class="text-xs text-purple-600 hover:text-purple-700 flex items-center gap-1">
+                    <a href="{{ url_for('finance.view_withdraw_payment_code', request_id=wr.id, slot='alipay') }}" target="_blank" class="text-xs text-purple-600 hover:text-purple-700 flex items-center gap-1">
                         <i data-lucide="image" width="12" height="12"></i>
                         查看支付宝收款码
                     </a>
                     {% else %}
-                    <a href="{{ url_for('static', filename=wr.payment_image) }}" target="_blank" class="text-xs text-purple-600 hover:text-purple-700 flex items-center gap-1">
+                    <a href="{{ url_for('finance.view_withdraw_payment_code', request_id=wr.id, slot='single') }}" target="_blank" class="text-xs text-purple-600 hover:text-purple-700 flex items-center gap-1">
                         <i data-lucide="image" width="12" height="12"></i>
                         查看收款码
                     </a>

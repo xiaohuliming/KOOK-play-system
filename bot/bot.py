@@ -399,10 +399,6 @@ def _create_withdraw_request(user, amount: Decimal, payment_account: str, paymen
         next_time = (recent_wr.created_at + timedelta(days=3)).strftime('%Y-%m-%d %H:%M')
         raise ValueError(f'限制：3天内仅可提交1次提现申请。你可在 {next_time} 后再次申请。')
 
-    pending_wr = WithdrawRequest.query.filter_by(user_id=user.id, status='pending').first()
-    if pending_wr:
-        raise ValueError(f'你有一笔待审核的提现 ({pending_wr.amount} 小猪粮)，请等待处理。')
-
     if user.m_bean < amount:
         raise ValueError(f'余额不足，当前可提现: **{user.m_bean}** 小猪粮。')
 
@@ -506,12 +502,6 @@ async def _try_complete_withdraw_with_payment_image(msg: Message) -> bool:
         if not user.has_player_tag:
             _withdraw_pending_uploads.pop(kook_id, None)
             await msg.reply('仅拥有陪玩身份的用户可申请提现。')
-            return True
-
-        pending_db = WithdrawRequest.query.filter_by(user_id=user.id, status='pending').first()
-        if pending_db:
-            _withdraw_pending_uploads.pop(kook_id, None)
-            await msg.reply(f'你有一笔待审核的提现 ({pending_db.amount} 小猪粮)，请等待处理。')
             return True
 
         recent_wr = _get_recent_withdrawal_within_3_days(user.id)
@@ -802,11 +792,6 @@ async def withdraw(msg: Message, amount_str: str = ''):
 
         if user.m_bean < amount:
             await msg.reply(f'余额不足，当前可提现: **{user.m_bean}** 小猪粮')
-            return
-
-        pending = WithdrawRequest.query.filter_by(user_id=user.id, status='pending').first()
-        if pending:
-            await msg.reply(f'你有一笔待审核的提现 ({pending.amount} 小猪粮)，请等待处理')
             return
 
         recent_wr = _get_recent_withdrawal_within_3_days(user.id)

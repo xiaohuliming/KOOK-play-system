@@ -235,6 +235,7 @@ def detail(user_id):
             'refund_deduct',
             'admin_adjust',
             'withdraw_freeze',
+            'withdraw_return',
             'exchange_in',
             'exchange_out',
         }
@@ -858,6 +859,7 @@ def export_detail(user_id):
             'order_income': '订单收入', 'gift_income': '礼物收入',
             'withdraw': '提现', 'refund_deduct': '退款扣回',
             'admin_adjust': '管理调整', 'withdraw_freeze': '提现冻结',
+            'withdraw_return': '提现退回',
             'exchange_in': '转换转入', 'exchange_out': '转换转出',
         }
         _write_headers(ws, ['类型', '变动金额', '变动后余额', '原因', '时间'])
@@ -924,4 +926,3 @@ def export_detail(user_id):
         as_attachment=True,
         download_name=filename,
     )
-

@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app
+from flask import Blueprint, abort, render_template, request, flash, redirect, url_for, current_app, send_file
 from flask_login import login_required, current_user
 from app.models.finance import WithdrawRequest, CommissionLog, BalanceLog
 from app.models.user import User
@@ -13,7 +13,6 @@ from collections import defaultdict, deque
 import re
 import os
 import uuid
-from werkzeug.utils import secure_filename
 
 finance_bp = Blueprint('finance', __name__)
 
@@ -164,19 +163,39 @@ def _redirect_after_withdraw_audit(row_id=None):
 
     return redirect(target)
 
+_PAYMENT_CODE_EXTS = {'png', 'jpg', 'jpeg', 'gif'}
+_PAYMENT_CODE_MIME_BY_EXT = {
+    'png': 'image/png',
+    'jpg': 'image/jpeg',
+    'jpeg': 'image/jpeg',
+    'gif': 'image/gif',
+    'webp': 'image/webp',
+    'bmp': 'image/bmp',
+}
+
+
+def _payment_image_ext(filename):
+    if '.' not in str(filename or ''):
+        return ''
+    ext = filename.rsplit('.', 1)[1].lower()
+    return 'jpg' if ext == 'jpeg' else ext
+
+
 def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'gif'}
+    return _payment_image_ext(filename) in _PAYMENT_CODE_EXTS
 
 
 def _save_payment_image(file):
     """保存上传图片并返回相对路径。"""
     if not file or file.filename == '':
         return None, None
-    if not allowed_file(file.filename):
+    ext = _payment_image_ext(file.filename)
+    if ext not in _PAYMENT_CODE_EXTS:
         return None, '收款码图片格式仅支持 png/jpg/jpeg/gif'
 
-    filename = secure_filename(file.filename)
-    unique_filename = f"{uuid.uuid4().hex}_{filename}"
+    # 不复用原始文件名：中文文件名经 secure_filename 处理后可能变成 xxx_jpg，
+    # 导致服务器无法识别 MIME，部分浏览器会强制下载。
+    unique_filename = f"{uuid.uuid4().hex}.{ext}"
     upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'payment_codes')
     if not os.path.exists(upload_folder):
         os.makedirs(upload_folder)
@@ -195,6 +214,83 @@ def _parse_dual_payment_images(payment_method, payment_image):
     if method == 'alipay':
         return '', raw
     return raw, ''
+
+
+def _payment_image_parts(payment_image):
+    raw = str(payment_image or '').strip()
+    if not raw:
+        return []
+    return [p.strip() for p in raw.split('|') if p.strip()]
+
+
+def _resolve_payment_code_path(stored_path):
+    raw = str(stored_path or '').strip()
+    if not raw or raw.startswith(('http://', 'https://')):
+        return None
+    if raw.startswith('/static/'):
+        raw = raw[len('/static/'):]
+    elif raw.startswith('static/'):
+        raw = raw[len('static/'):]
+    else:
+        raw = raw.lstrip('/')
+
+    rel_path = os.path.normpath(raw).replace('\\', '/')
+    if rel_path == '..' or rel_path.startswith('../'):
+        return None
+    if not rel_path.startswith('uploads/payment_codes/'):
+        return None
+
+    static_root = os.path.realpath(os.path.join(current_app.root_path, 'static'))
+    full_path = os.path.realpath(os.path.join(static_root, rel_path))
+    try:
+        if os.path.commonpath([static_root, full_path]) != static_root:
+            return None
+    except ValueError:
+        return None
+    return full_path
+
+
+def _detect_image_mime_and_ext(full_path):
+    try:
+        with open(full_path, 'rb') as fp:
+            head = fp.read(16)
+    except OSError:
+        return None, None
+
+    if head.startswith(b'\xff\xd8\xff'):
+        return 'image/jpeg', 'jpg'
+    if head.startswith(b'\x89PNG\r\n\x1a\n'):
+        return 'image/png', 'png'
+    if head.startswith((b'GIF87a', b'GIF89a')):
+        return 'image/gif', 'gif'
+    if head.startswith(b'BM'):
+        return 'image/bmp', 'bmp'
+    if head.startswith(b'RIFF') and head[8:12] == b'WEBP':
+        return 'image/webp', 'webp'
+
+    ext = os.path.splitext(full_path)[1].lower().lstrip('.')
+    mime = _PAYMENT_CODE_MIME_BY_EXT.get(ext)
+    if mime:
+        return mime, ('jpg' if ext == 'jpeg' else ext)
+    return None, None
+
+
+def _withdraw_payment_image_for_slot(withdraw_request, slot):
+    slot = str(slot or '').strip().lower()
+    if slot not in {'wechat', 'alipay', 'single'}:
+        return ''
+
+    wx_img, ali_img = _parse_dual_payment_images(
+        withdraw_request.payment_method,
+        withdraw_request.payment_image,
+    )
+    if slot == 'wechat':
+        return wx_img
+    if slot == 'alipay':
+        return ali_img
+
+    parts = _payment_image_parts(withdraw_request.payment_image)
+    return parts[0] if parts else ''
 
 
 def _parse_dual_payment_accounts(payment_account):
@@ -229,6 +325,7 @@ def _get_saved_withdraw_payment(user_id):
         wx_acc, ali_acc = _parse_dual_payment_accounts(wr.payment_account)
         if wx_img or ali_img or wx_acc or ali_acc:
             return {
+                'withdraw_id': wr.id,
                 'wechat_image': wx_img,
                 'alipay_image': ali_img,
                 'wechat_account': wx_acc,
@@ -238,6 +335,7 @@ def _get_saved_withdraw_payment(user_id):
     return {
         'wechat_image': '',
         'alipay_image': '',
+        'withdraw_id': None,
         'wechat_account': '',
         'alipay_account': '',
         'has_both_codes': False,
@@ -274,6 +372,43 @@ def my_wallet():
     commission_logs = CommissionLog.query.filter_by(user_id=current_user.id).order_by(CommissionLog.created_at.desc()).limit(20).all()
     
     return render_template('finance/wallet.html', withdrawals=withdrawals, commission_logs=commission_logs)
+
+
+@finance_bp.route('/withdraw/<int:request_id>/payment-code/<string:slot>')
+@login_required
+def view_withdraw_payment_code(request_id, slot):
+    """以内联图片方式查看收款码，避免静态服务 MIME/扩展名差异导致下载。"""
+    wr = WithdrawRequest.query.get_or_404(request_id)
+    if not (current_user.is_admin or wr.user_id == current_user.id):
+        abort(403)
+
+    image_path = _withdraw_payment_image_for_slot(wr, slot)
+    full_path = _resolve_payment_code_path(image_path)
+    if not full_path or not os.path.exists(full_path):
+        abort(404)
+
+    mimetype, ext = _detect_image_mime_and_ext(full_path)
+    if not mimetype:
+        abort(404)
+
+    slot_key = str(slot or '').lower()
+    label = {
+        'wechat': 'wechat',
+        'alipay': 'alipay',
+    }.get(slot_key, str(wr.payment_method or 'payment').replace('+', '-'))
+    download_name = f'withdraw-{wr.id}-{label}.{ext}'
+    response = send_file(
+        full_path,
+        mimetype=mimetype,
+        as_attachment=False,
+        download_name=download_name,
+        conditional=True,
+        max_age=0,
+    )
+    response.headers['Content-Disposition'] = f'inline; filename="{download_name}"'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    return response
+
 
 @finance_bp.route('/withdraw', methods=['GET', 'POST'])
 @login_required
@@ -348,9 +483,15 @@ def withdraw():
         current_user.m_bean_frozen += amount
         
         db.session.add(wr)
-        
-        # Log withdrawal request (optional, or just rely on WithdrawRequest)
-        
+        db.session.flush()
+        db.session.add(CommissionLog(
+            user_id=current_user.id,
+            change_type='withdraw_freeze',
+            amount=-amount,
+            balance_after=current_user.m_bean,
+            reason=f'提现申请冻结 #{wr.id}',
+        ))
+
         try:
             db.session.commit()
             try:
@@ -706,16 +847,7 @@ def audit_withdraw(request_id):
             # Unfreeze (reduce frozen amount, with lower bound protection)
             # Money was already deducted from m_bean when requesting
             wr.user.m_bean_frozen = max(Decimal('0'), wr.user.m_bean_frozen - wr.amount)
-            
-            # Log commission change (actual payout)
-            log = CommissionLog(
-                user_id=wr.user_id,
-                change_type='withdraw',
-                amount=-wr.amount,
-                balance_after=wr.user.m_bean,
-                reason=f'提现成功 (单号: {wr.id})'
-            )
-            db.session.add(log)
+
             log_operation(
                 current_user.id,
                 'withdraw_approve',
@@ -731,6 +863,13 @@ def audit_withdraw(request_id):
             # Refund balance (with lower bound protection on frozen)
             wr.user.m_bean += wr.amount
             wr.user.m_bean_frozen = max(Decimal('0'), wr.user.m_bean_frozen - wr.amount)
+            db.session.add(CommissionLog(
+                user_id=wr.user_id,
+                change_type='withdraw_return',
+                amount=wr.amount,
+                balance_after=wr.user.m_bean,
+                reason=f'提现拒绝退回 (单号: {wr.id})',
+            ))
             log_operation(
                 current_user.id,
                 'withdraw_reject',
@@ -787,6 +926,7 @@ def commission_detail():
         'gift_income',
         'withdraw_freeze',
         'withdraw',
+        'withdraw_return',
         'refund_deduct',
         'admin_adjust',
         'exchange_in',

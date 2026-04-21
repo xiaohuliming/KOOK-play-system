@@ -368,7 +368,9 @@
         <option value="">全部</option>
         <option value="order_income" {% if request.args.get('change_type')=='order_income' %}selected{% endif %}>订单收入</option>
         <option value="gift_income" {% if request.args.get('change_type')=='gift_income' %}selected{% endif %}>礼物收入</option>
+        <option value="withdraw_freeze" {% if request.args.get('change_type')=='withdraw_freeze' %}selected{% endif %}>提现冻结</option>
         <option value="withdraw" {% if request.args.get('change_type')=='withdraw' %}selected{% endif %}>提现</option>
+        <option value="withdraw_return" {% if request.args.get('change_type')=='withdraw_return' %}selected{% endif %}>提现退回</option>
         <option value="refund_deduct" {% if request.args.get('change_type')=='refund_deduct' %}selected{% endif %}>退款扣回</option>
         <option value="admin_adjust" {% if request.args.get('change_type')=='admin_adjust' %}selected{% endif %}>管理调整</option>
       </select>

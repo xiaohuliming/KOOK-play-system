@@ -16,6 +16,7 @@
         <option value="gift_income" {% if current_type == 'gift_income' %}selected{% endif %}>礼物收入</option>
         <option value="withdraw_freeze" {% if current_type == 'withdraw_freeze' %}selected{% endif %}>提现冻结</option>
         <option value="withdraw" {% if current_type == 'withdraw' %}selected{% endif %}>提现</option>
+        <option value="withdraw_return" {% if current_type == 'withdraw_return' %}selected{% endif %}>提现退回</option>
         <option value="refund_deduct" {% if current_type == 'refund_deduct' %}selected{% endif %}>退款扣回</option>
         <option value="admin_adjust" {% if current_type == 'admin_adjust' %}selected{% endif %}>管理调整</option>
         <option value="exchange_in" {% if current_type == 'exchange_in' %}selected{% endif %}>转换转入</option>
@@ -41,7 +42,7 @@
         <tbody>
           {% if logs.items %}
           {% for log in logs.items %}
-          {% set type_labels = {'order_income':'订单收入','gift_income':'礼物收入','withdraw_freeze':'提现冻结','withdraw':'提现','refund_deduct':'退款扣回','admin_adjust':'管理调整','exchange_in':'转换转入','exchange_out':'转换转出'} %}
+          {% set type_labels = {'order_income':'订单收入','gift_income':'礼物收入','withdraw_freeze':'提现冻结','withdraw':'提现','withdraw_return':'提现退回','refund_deduct':'退款扣回','admin_adjust':'管理调整','exchange_in':'转换转入','exchange_out':'转换转出'} %}
           <tr class="border-b border-white/20 dark:border-slate-700/50 text-sm">
             <td class="py-3 text-slate-500 dark:text-slate-400">{{ fmt_dt(log.created_at, '%Y-%m-%d %H:%M') }}</td>
             <td class="py-3 text-slate-700 dark:text-slate-300">{{ type_labels.get(log.change_type, log.change_type) }}</td>
