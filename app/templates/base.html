@@ -15,7 +15,195 @@
   <!-- Lucide Icons -->
   <script src="{{ url_for('static', filename='js/lucide.min.js') }}"></script>
 
+  <script>
+    (function() {
+      var root = document.documentElement;
+      var storedColorMode = 'system';
+      var storedStyleTheme = 'classic';
+      try {
+        storedColorMode = localStorage.getItem('colorMode') || localStorage.getItem('theme') || 'system';
+        storedStyleTheme = localStorage.getItem('styleTheme') || 'classic';
+      } catch (e) {
+        storedColorMode = 'system';
+        storedStyleTheme = 'classic';
+      }
+      if (['system', 'light', 'dark'].indexOf(storedColorMode) < 0) storedColorMode = 'system';
+      if (['classic', 'amber', 'ocean', 'forest'].indexOf(storedStyleTheme) < 0) storedStyleTheme = 'classic';
+      var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      var enableDark = storedColorMode === 'dark' || (storedColorMode === 'system' && prefersDark);
+      root.classList.toggle('dark', enableDark);
+      root.dataset.colorMode = storedColorMode;
+      root.dataset.styleTheme = storedStyleTheme;
+    })();
+  </script>
+
   <style>
+    :root,
+    html[data-style-theme="classic"] {
+      --theme-primary-50: #f5f3ff;
+      --theme-primary-100: #ede9fe;
+      --theme-primary-200: #ddd6fe;
+      --theme-primary-300: #c4b5fd;
+      --theme-primary-400: #a78bfa;
+      --theme-primary-500: #8b5cf6;
+      --theme-primary-600: #7c3aed;
+      --theme-primary-700: #6d28d9;
+      --theme-primary-soft: rgba(139, 92, 246, 0.12);
+      --theme-primary-soft-strong: rgba(139, 92, 246, 0.18);
+      --theme-primary-soft-dark: rgba(139, 92, 246, 0.22);
+      --theme-primary-border: rgba(139, 92, 246, 0.28);
+      --theme-primary-shadow: rgba(139, 92, 246, 0.32);
+      --theme-secondary-600: #4f46e5;
+      --theme-secondary-500: #6366f1;
+      --theme-page-light: #f4f5f7;
+      --theme-page-dark: #0f172a;
+      --theme-surface-light-from: #eef2ff;
+      --theme-surface-light-via: #f4f5f7;
+      --theme-surface-light-to: #faf5ff;
+      --theme-surface-dark-from: #0f172a;
+      --theme-surface-dark-via: #020617;
+      --theme-surface-dark-to: #312e81;
+      --theme-glow-a: rgba(168, 85, 247, 0.12);
+      --theme-glow-b: rgba(96, 165, 250, 0.12);
+      --theme-glow-c: rgba(244, 114, 182, 0.12);
+      --theme-panel-bg: rgba(255, 255, 255, 0.96);
+      --theme-panel-border: rgba(255, 255, 255, 0.7);
+      --theme-panel-shadow: rgba(15, 23, 42, 0.15);
+      --theme-assistant-header: linear-gradient(135deg, rgba(139, 92, 246, 0.10), rgba(99, 102, 241, 0.08));
+      --theme-selection: rgba(139, 92, 246, 0.22);
+    }
+
+    html[data-style-theme="amber"] {
+      --theme-primary-50: #fff7ed;
+      --theme-primary-100: #ffedd5;
+      --theme-primary-200: #fed7aa;
+      --theme-primary-300: #fdba74;
+      --theme-primary-400: #fb923c;
+      --theme-primary-500: #f59e0b;
+      --theme-primary-600: #d97706;
+      --theme-primary-700: #b45309;
+      --theme-primary-soft: rgba(245, 158, 11, 0.13);
+      --theme-primary-soft-strong: rgba(245, 158, 11, 0.20);
+      --theme-primary-soft-dark: rgba(245, 158, 11, 0.24);
+      --theme-primary-border: rgba(245, 158, 11, 0.30);
+      --theme-primary-shadow: rgba(245, 158, 11, 0.32);
+      --theme-secondary-600: #0f766e;
+      --theme-secondary-500: #14b8a6;
+      --theme-page-light: #f6f3ee;
+      --theme-page-dark: #111827;
+      --theme-surface-light-from: #fff7ed;
+      --theme-surface-light-via: #f6f3ee;
+      --theme-surface-light-to: #ecfeff;
+      --theme-surface-dark-from: #111827;
+      --theme-surface-dark-via: #0b1120;
+      --theme-surface-dark-to: #134e4a;
+      --theme-glow-a: rgba(245, 158, 11, 0.12);
+      --theme-glow-b: rgba(20, 184, 166, 0.12);
+      --theme-glow-c: rgba(251, 146, 60, 0.10);
+      --theme-assistant-header: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(20, 184, 166, 0.08));
+      --theme-selection: rgba(245, 158, 11, 0.24);
+    }
+
+    html[data-style-theme="ocean"] {
+      --theme-primary-50: #ecfeff;
+      --theme-primary-100: #cffafe;
+      --theme-primary-200: #a5f3fc;
+      --theme-primary-300: #67e8f9;
+      --theme-primary-400: #22d3ee;
+      --theme-primary-500: #06b6d4;
+      --theme-primary-600: #0891b2;
+      --theme-primary-700: #0e7490;
+      --theme-primary-soft: rgba(6, 182, 212, 0.14);
+      --theme-primary-soft-strong: rgba(6, 182, 212, 0.22);
+      --theme-primary-soft-dark: rgba(34, 211, 238, 0.22);
+      --theme-primary-border: rgba(34, 211, 238, 0.28);
+      --theme-primary-shadow: rgba(6, 182, 212, 0.30);
+      --theme-secondary-600: #2563eb;
+      --theme-secondary-500: #3b82f6;
+      --theme-page-light: #eff6ff;
+      --theme-page-dark: #0b1120;
+      --theme-surface-light-from: #ecfeff;
+      --theme-surface-light-via: #eff6ff;
+      --theme-surface-light-to: #eef2ff;
+      --theme-surface-dark-from: #0b1120;
+      --theme-surface-dark-via: #020617;
+      --theme-surface-dark-to: #1d4ed8;
+      --theme-glow-a: rgba(34, 211, 238, 0.12);
+      --theme-glow-b: rgba(59, 130, 246, 0.12);
+      --theme-glow-c: rgba(16, 185, 129, 0.10);
+      --theme-assistant-header: linear-gradient(135deg, rgba(6, 182, 212, 0.12), rgba(59, 130, 246, 0.08));
+      --theme-selection: rgba(34, 211, 238, 0.24);
+    }
+
+    html[data-style-theme="forest"] {
+      --theme-primary-50: #fefce8;
+      --theme-primary-100: #fef3c7;
+      --theme-primary-200: #fde68a;
+      --theme-primary-300: #fcd34d;
+      --theme-primary-400: #fbbf24;
+      --theme-primary-500: #eab308;
+      --theme-primary-600: #ca8a04;
+      --theme-primary-700: #a16207;
+      --theme-primary-soft: rgba(234, 179, 8, 0.14);
+      --theme-primary-soft-strong: rgba(234, 179, 8, 0.22);
+      --theme-primary-soft-dark: rgba(234, 179, 8, 0.24);
+      --theme-primary-border: rgba(234, 179, 8, 0.30);
+      --theme-primary-shadow: rgba(234, 179, 8, 0.26);
+      --theme-secondary-600: #166534;
+      --theme-secondary-500: #15803d;
+      --theme-page-light: #f5f5f4;
+      --theme-page-dark: #111315;
+      --theme-surface-light-from: #fafaf9;
+      --theme-surface-light-via: #f5f5f4;
+      --theme-surface-light-to: #fefce8;
+      --theme-surface-dark-from: #111315;
+      --theme-surface-dark-via: #0a0d0f;
+      --theme-surface-dark-to: #16351f;
+      --theme-glow-a: rgba(234, 179, 8, 0.11);
+      --theme-glow-b: rgba(34, 197, 94, 0.10);
+      --theme-glow-c: rgba(202, 138, 4, 0.10);
+      --theme-assistant-header: linear-gradient(135deg, rgba(234, 179, 8, 0.12), rgba(34, 197, 94, 0.08));
+      --theme-selection: rgba(234, 179, 8, 0.24);
+    }
+
+    html.dark {
+      --theme-panel-bg: rgba(15, 23, 42, 0.96);
+      --theme-panel-border: rgba(148, 163, 184, 0.16);
+      --theme-panel-shadow: rgba(0, 0, 0, 0.45);
+    }
+
+    body {
+      background-color: var(--theme-page-light) !important;
+    }
+
+    .dark body {
+      background-color: var(--theme-page-dark) !important;
+    }
+
+    ::selection {
+      background: var(--theme-selection);
+    }
+
+    #app-gradient-bg {
+      background: radial-gradient(ellipse at top right, var(--theme-surface-light-from) 0%, var(--theme-surface-light-via) 48%, var(--theme-surface-light-to) 100%) !important;
+    }
+
+    .dark #app-gradient-bg {
+      background: radial-gradient(ellipse at top right, var(--theme-surface-dark-from) 0%, var(--theme-surface-dark-via) 48%, var(--theme-surface-dark-to) 100%) !important;
+    }
+
+    #theme-glow-a {
+      background: radial-gradient(circle, var(--theme-glow-a) 0%, transparent 70%) !important;
+    }
+
+    #theme-glow-b {
+      background: radial-gradient(circle, var(--theme-glow-b) 0%, transparent 70%) !important;
+    }
+
+    #theme-glow-c {
+      background: radial-gradient(circle, var(--theme-glow-c) 0%, transparent 70%) !important;
+    }
+
     /* 自定义滚动条 */
     .custom-scrollbar::-webkit-scrollbar {
       width: 6px;
@@ -89,18 +277,164 @@
         -webkit-overflow-scrolling: touch;
       }
     }
+
+    .text-purple-500,
+    .text-purple-600,
+    .text-purple-700 {
+      color: var(--theme-primary-600) !important;
+    }
+
+    .hover\:text-purple-600:hover {
+      color: var(--theme-primary-600) !important;
+    }
+
+    .dark .dark\:text-purple-300,
+    .dark .dark\:text-purple-400 {
+      color: var(--theme-primary-300) !important;
+    }
+
+    .bg-purple-50,
+    .hover\:bg-purple-50:hover {
+      background-color: var(--theme-primary-50) !important;
+    }
+
+    .bg-purple-100,
+    .hover\:bg-purple-100:hover {
+      background-color: var(--theme-primary-100) !important;
+    }
+
+    .bg-purple-400,
+    .bg-purple-500,
+    .bg-purple-600 {
+      background-color: var(--theme-primary-600) !important;
+    }
+
+    .bg-purple-700,
+    .hover\:bg-purple-700:hover {
+      background-color: var(--theme-primary-700) !important;
+    }
+
+    .bg-purple-500\/10 {
+      background-color: var(--theme-primary-soft) !important;
+    }
+
+    .dark .dark\:bg-purple-900\/20,
+    .dark .dark\:bg-purple-900\/30,
+    .dark .dark\:bg-purple-900\/40 {
+      background-color: var(--theme-primary-soft-dark) !important;
+    }
+
+    .border-purple-200 {
+      border-color: var(--theme-primary-border) !important;
+    }
+
+    .dark .dark\:border-purple-800,
+    .dark .dark\:border-purple-800\/50,
+    .dark .dark\:border-purple-900\/30 {
+      border-color: var(--theme-primary-border) !important;
+    }
+
+    .focus\:ring-purple-500:focus,
+    .focus\:ring-purple-500\/20:focus,
+    .focus\:ring-purple-400\/30:focus {
+      --tw-ring-color: var(--theme-primary-soft-strong) !important;
+    }
+
+    .shadow-purple-200,
+    .shadow-purple-500\/30,
+    .shadow-purple-500\/40,
+    .hover\:shadow-purple-500\/30:hover,
+    .hover\:shadow-purple-500\/40:hover {
+      --tw-shadow-color: var(--theme-primary-shadow) !important;
+      --tw-shadow: var(--tw-shadow-colored) !important;
+    }
+
+    .from-purple-500 {
+      --tw-gradient-from: var(--theme-primary-500) var(--tw-gradient-from-position) !important;
+      --tw-gradient-to: rgb(255 255 255 / 0) var(--tw-gradient-to-position) !important;
+      --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+    }
+
+    .to-indigo-600 {
+      --tw-gradient-to: var(--theme-secondary-600) var(--tw-gradient-to-position) !important;
+    }
+
+    .from-indigo-50 {
+      --tw-gradient-from: var(--theme-surface-light-from) var(--tw-gradient-from-position) !important;
+      --tw-gradient-to: rgb(255 255 255 / 0) var(--tw-gradient-to-position) !important;
+      --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+    }
+
+    .to-purple-50 {
+      --tw-gradient-to: var(--theme-surface-light-to) var(--tw-gradient-to-position) !important;
+    }
+
+    .dark .dark\:to-indigo-950 {
+      --tw-gradient-to: var(--theme-surface-dark-to) var(--tw-gradient-to-position) !important;
+    }
+
+    .appearance-segment,
+    .appearance-theme-option {
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      transition: all 0.2s ease;
+    }
+
+    .appearance-segment:hover,
+    .appearance-theme-option:hover {
+      border-color: var(--theme-primary-border);
+      background: var(--theme-primary-soft);
+    }
+
+    .appearance-segment[data-active="true"],
+    .appearance-theme-option[data-active="true"] {
+      border-color: var(--theme-primary-border);
+      background: var(--theme-primary-soft);
+      color: var(--theme-primary-700);
+      box-shadow: 0 10px 25px -18px var(--theme-primary-shadow);
+    }
+
+    .dark .appearance-segment[data-active="true"],
+    .dark .appearance-theme-option[data-active="true"] {
+      background: var(--theme-primary-soft-dark);
+      color: var(--theme-primary-300);
+    }
+
+    .appearance-theme-swatch {
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+    }
+
+    .appearance-theme-option .appearance-check {
+      opacity: 0;
+      transform: scale(0.85);
+      transition: all 0.2s ease;
+    }
+
+    .appearance-theme-option[data-active="true"] .appearance-check {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .assistant-shell {
+      background: var(--theme-panel-bg) !important;
+      border: 1px solid var(--theme-panel-border) !important;
+      box-shadow: 0 25px 50px -12px var(--theme-panel-shadow) !important;
+    }
+
+    .assistant-header {
+      background: var(--theme-assistant-header) !important;
+    }
   </style>
   {% block styles %}{% endblock %}
 </head>
 <body class="min-h-screen bg-[#f4f5f7] dark:bg-slate-900 font-sans text-slate-800 dark:text-slate-100 selection:bg-purple-200 dark:selection:bg-purple-900 relative transition-colors duration-300">
   
   <!-- 渐变背景底色 -->
-  <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-50 via-[#f4f5f7] to-purple-50 dark:from-slate-900 dark:via-slate-950 dark:to-indigo-950 -z-20 transition-colors duration-500"></div>
+  <div id="app-gradient-bg" class="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-50 via-[#f4f5f7] to-purple-50 dark:from-slate-900 dark:via-slate-950 dark:to-indigo-950 -z-20 transition-colors duration-500"></div>
 
   <!-- 背景环境光晕 (静态，无动画，无 blur filter —— 纯色块即可) -->
-  <div class="fixed top-0 left-0 w-[500px] h-[500px] rounded-full -z-10 pointer-events-none" style="background:radial-gradient(circle,rgba(168,85,247,0.12) 0%,transparent 70%);"></div>
-  <div class="fixed top-0 right-0 w-[500px] h-[500px] rounded-full -z-10 pointer-events-none" style="background:radial-gradient(circle,rgba(96,165,250,0.12) 0%,transparent 70%);"></div>
-  <div class="fixed bottom-0 left-20 w-[500px] h-[500px] rounded-full -z-10 pointer-events-none" style="background:radial-gradient(circle,rgba(244,114,182,0.12) 0%,transparent 70%);"></div>
+  <div id="theme-glow-a" class="fixed top-0 left-0 w-[500px] h-[500px] rounded-full -z-10 pointer-events-none" style="background:radial-gradient(circle,rgba(168,85,247,0.12) 0%,transparent 70%);"></div>
+  <div id="theme-glow-b" class="fixed top-0 right-0 w-[500px] h-[500px] rounded-full -z-10 pointer-events-none" style="background:radial-gradient(circle,rgba(96,165,250,0.12) 0%,transparent 70%);"></div>
+  <div id="theme-glow-c" class="fixed bottom-0 left-20 w-[500px] h-[500px] rounded-full -z-10 pointer-events-none" style="background:radial-gradient(circle,rgba(244,114,182,0.12) 0%,transparent 70%);"></div>
 
   <!-- 移动端抽屉遮罩 (去掉 backdrop-blur 以减少 GPU 开销) -->
   <div id="mobile-overlay" class="fixed inset-0 bg-black/50 z-40 hidden opacity-0 md:hidden" onclick="closeMobileDrawer()"></div>
@@ -324,11 +658,90 @@
             />
           </div>
           
-          <!-- 主题切换按钮 -->
-          <button id="theme-toggle" class="w-10 h-10 flex items-center justify-center bg-white/40 dark:bg-slate-800/40 border border-white/60 dark:border-slate-700/50 rounded-full text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 transition-colors relative shadow-sm">
-             <i data-lucide="moon" class="block dark:hidden" width="18" height="18"></i>
-             <i data-lucide="sun" class="hidden dark:block" width="18" height="18"></i>
-          </button>
+          <!-- 外观设置 -->
+          <div id="appearance-root" class="relative">
+            <button id="appearance-toggle" type="button" aria-expanded="false" aria-controls="appearance-panel" class="w-10 sm:w-auto h-10 px-0 sm:px-3 flex items-center justify-center gap-2 bg-white/40 dark:bg-slate-800/40 border border-white/60 dark:border-slate-700/50 rounded-full text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 transition-colors relative shadow-sm" title="外观设置">
+              <i data-lucide="palette" width="18" height="18"></i>
+              <span class="hidden sm:inline text-xs font-semibold">外观</span>
+              <i data-lucide="chevron-down" class="hidden sm:block" width="14" height="14"></i>
+            </button>
+
+            <div id="appearance-panel" class="hidden absolute right-0 mt-3 w-80 max-w-[92vw] glass-card rounded-3xl border border-white/70 dark:border-slate-700/60 shadow-xl p-4 z-50">
+              <div class="flex items-center justify-between mb-4">
+                <div>
+                  <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100">外观设置</h3>
+                  <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">明暗模式和样式主题</p>
+                </div>
+                <span class="w-9 h-9 rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-300 flex items-center justify-center">
+                  <i data-lucide="sparkles" width="16" height="16"></i>
+                </span>
+              </div>
+
+              <div class="mb-5">
+                <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">明暗模式</p>
+                <div class="grid grid-cols-3 gap-2">
+                  <button type="button" data-color-mode="system" class="appearance-segment rounded-2xl px-3 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-white/45 dark:bg-slate-900/35">
+                    跟随
+                  </button>
+                  <button type="button" data-color-mode="light" class="appearance-segment rounded-2xl px-3 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-white/45 dark:bg-slate-900/35">
+                    浅色
+                  </button>
+                  <button type="button" data-color-mode="dark" class="appearance-segment rounded-2xl px-3 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-white/45 dark:bg-slate-900/35">
+                    深色
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">样式主题</p>
+                <div class="grid grid-cols-1 gap-2">
+                  <button type="button" data-style-theme="classic" class="appearance-theme-option flex items-center gap-3 rounded-2xl px-3 py-2.5 text-left bg-white/45 dark:bg-slate-900/35">
+                    <span class="appearance-theme-swatch w-9 h-9 rounded-2xl flex-shrink-0" style="background:linear-gradient(135deg,#8b5cf6,#4f46e5);"></span>
+                    <span class="min-w-0 flex-1">
+                      <span class="block text-sm font-semibold text-slate-700 dark:text-slate-200">经典紫</span>
+                      <span class="block text-xs text-slate-500 dark:text-slate-400">保持当前品牌色</span>
+                    </span>
+                    <span class="appearance-check text-purple-600 dark:text-purple-300">
+                      <i data-lucide="check" width="16" height="16"></i>
+                    </span>
+                  </button>
+
+                  <button type="button" data-style-theme="amber" class="appearance-theme-option flex items-center gap-3 rounded-2xl px-3 py-2.5 text-left bg-white/45 dark:bg-slate-900/35">
+                    <span class="appearance-theme-swatch w-9 h-9 rounded-2xl flex-shrink-0" style="background:linear-gradient(135deg,#f59e0b,#0f766e);"></span>
+                    <span class="min-w-0 flex-1">
+                      <span class="block text-sm font-semibold text-slate-700 dark:text-slate-200">琥珀金</span>
+                      <span class="block text-xs text-slate-500 dark:text-slate-400">更稳重的财务后台感</span>
+                    </span>
+                    <span class="appearance-check text-purple-600 dark:text-purple-300">
+                      <i data-lucide="check" width="16" height="16"></i>
+                    </span>
+                  </button>
+
+                  <button type="button" data-style-theme="ocean" class="appearance-theme-option flex items-center gap-3 rounded-2xl px-3 py-2.5 text-left bg-white/45 dark:bg-slate-900/35">
+                    <span class="appearance-theme-swatch w-9 h-9 rounded-2xl flex-shrink-0" style="background:linear-gradient(135deg,#06b6d4,#2563eb);"></span>
+                    <span class="min-w-0 flex-1">
+                      <span class="block text-sm font-semibold text-slate-700 dark:text-slate-200">深海蓝</span>
+                      <span class="block text-xs text-slate-500 dark:text-slate-400">更清爽的科技感</span>
+                    </span>
+                    <span class="appearance-check text-purple-600 dark:text-purple-300">
+                      <i data-lucide="check" width="16" height="16"></i>
+                    </span>
+                  </button>
+
+                  <button type="button" data-style-theme="forest" class="appearance-theme-option flex items-center gap-3 rounded-2xl px-3 py-2.5 text-left bg-white/45 dark:bg-slate-900/35">
+                    <span class="appearance-theme-swatch w-9 h-9 rounded-2xl flex-shrink-0" style="background:linear-gradient(135deg,#eab308,#166534);"></span>
+                    <span class="min-w-0 flex-1">
+                      <span class="block text-sm font-semibold text-slate-700 dark:text-slate-200">黑金绿</span>
+                      <span class="block text-xs text-slate-500 dark:text-slate-400">低调一点的高级感</span>
+                    </span>
+                    <span class="appearance-check text-purple-600 dark:text-purple-300">
+                      <i data-lucide="check" width="16" height="16"></i>
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
 
           <div id="notif-root" class="relative">
             <button id="notif-toggle" type="button" aria-expanded="false" aria-controls="notif-panel" class="w-10 h-10 flex items-center justify-center bg-white/40 dark:bg-slate-800/40 border border-white/60 dark:border-slate-700/50 rounded-full text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 transition-colors relative shadow-sm">
@@ -428,10 +841,10 @@
 
   <!-- 助理小呢 聊天面板 -->
   <div id="assistant-panel" class="fixed bottom-24 right-6 z-50 w-[380px] max-w-[calc(100vw-2rem)] hidden" style="max-height:min(600px,75vh);">
-    <div class="flex flex-col h-full rounded-3xl overflow-hidden" style="background:rgba(255,255,255,0.96);border:1px solid rgba(255,255,255,0.7);box-shadow:0 25px 50px -12px rgba(0,0,0,0.15);">
+    <div class="assistant-shell flex flex-col h-full rounded-3xl overflow-hidden">
 
       <!-- 头部 -->
-      <div class="flex items-center gap-3 px-5 py-4 border-b border-slate-200/50 dark:border-slate-700/50 flex-shrink-0" style="background:linear-gradient(135deg,rgba(139,92,246,0.1),rgba(99,102,241,0.08));">
+      <div class="assistant-header flex items-center gap-3 px-5 py-4 border-b border-slate-200/50 dark:border-slate-700/50 flex-shrink-0">
         <div class="relative">
           <img src="{{ url_for('static', filename='img/site-logo.png') }}" class="w-10 h-10 rounded-full border-2 border-purple-200 shadow-sm" loading="lazy" decoding="async">
           <span class="absolute bottom-0 right-0 w-3 h-3 bg-green-400 rounded-full border-2 border-white"></span>
@@ -511,25 +924,154 @@
       setTimeout(function() { overlay.classList.add('hidden'); }, 300);
     }
 
-    // Dark Mode Toggle Logic
-    const themeToggle = document.getElementById('theme-toggle');
-    const html = document.documentElement;
+    // 外观设置：明暗模式 + 样式主题
+    (function initAppearanceSettings() {
+      const root = document.documentElement;
+      const appearanceRoot = document.getElementById('appearance-root');
+      const appearanceToggle = document.getElementById('appearance-toggle');
+      const appearancePanel = document.getElementById('appearance-panel');
+      const colorButtons = appearancePanel ? appearancePanel.querySelectorAll('[data-color-mode]') : [];
+      const styleButtons = appearancePanel ? appearancePanel.querySelectorAll('[data-style-theme]') : [];
+      const colorMedia = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+      const validColorModes = ['system', 'light', 'dark'];
+      const validStyleThemes = ['classic', 'amber', 'ocean', 'forest'];
 
-    // Check local storage or system preference
-    if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-      html.classList.add('dark');
-    } else {
-      html.classList.remove('dark');
-    }
-
-    themeToggle.addEventListener('click', () => {
-      html.classList.toggle('dark');
-      if (html.classList.contains('dark')) {
-        localStorage.theme = 'dark';
-      } else {
-        localStorage.theme = 'light';
+      function readStorage(key, fallback) {
+        try {
+          return localStorage.getItem(key) || fallback;
+        } catch (e) {
+          return fallback;
+        }
       }
-    });
+
+      function writeStorage(key, value) {
+        try {
+          localStorage.setItem(key, value);
+        } catch (e) {
+          // 本地存储不可用时，当前页面仍即时生效。
+        }
+      }
+
+      function normalizeColorMode(mode) {
+        return validColorModes.indexOf(mode) >= 0 ? mode : 'system';
+      }
+
+      function normalizeStyleTheme(theme) {
+        return validStyleThemes.indexOf(theme) >= 0 ? theme : 'classic';
+      }
+
+      function getColorMode() {
+        return normalizeColorMode(readStorage('colorMode', '') || readStorage('theme', 'system'));
+      }
+
+      function applyColorMode(mode, persist) {
+        const nextMode = normalizeColorMode(mode);
+        const prefersDark = colorMedia ? colorMedia.matches : false;
+        const enableDark = nextMode === 'dark' || (nextMode === 'system' && prefersDark);
+        root.classList.toggle('dark', enableDark);
+        root.dataset.colorMode = nextMode;
+        if (persist !== false) {
+          writeStorage('colorMode', nextMode);
+          writeStorage('theme', nextMode);
+        }
+        updateAppearanceState();
+      }
+
+      function applyStyleTheme(theme, persist) {
+        const nextTheme = normalizeStyleTheme(theme);
+        root.dataset.styleTheme = nextTheme;
+        if (persist !== false) {
+          writeStorage('styleTheme', nextTheme);
+        }
+        updateAppearanceState();
+      }
+
+      function updateAppearanceState() {
+        const activeColorMode = root.dataset.colorMode || getColorMode();
+        const activeStyleTheme = root.dataset.styleTheme || normalizeStyleTheme(readStorage('styleTheme', 'classic'));
+
+        colorButtons.forEach(function(button) {
+          const isActive = button.dataset.colorMode === activeColorMode;
+          button.dataset.active = isActive ? 'true' : 'false';
+          button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        });
+
+        styleButtons.forEach(function(button) {
+          const isActive = button.dataset.styleTheme === activeStyleTheme;
+          button.dataset.active = isActive ? 'true' : 'false';
+          button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        });
+      }
+
+      function closeAppearancePanel() {
+        if (!appearancePanel || !appearanceToggle) return;
+        appearancePanel.classList.add('hidden');
+        appearanceToggle.setAttribute('aria-expanded', 'false');
+      }
+
+      function openAppearancePanel() {
+        if (!appearancePanel || !appearanceToggle) return;
+        const notifPanelEl = document.getElementById('notif-panel');
+        const notifToggleEl = document.getElementById('notif-toggle');
+        if (notifPanelEl) notifPanelEl.classList.add('hidden');
+        if (notifToggleEl) notifToggleEl.setAttribute('aria-expanded', 'false');
+        appearancePanel.classList.remove('hidden');
+        appearanceToggle.setAttribute('aria-expanded', 'true');
+        lucide.createIcons();
+      }
+
+      applyColorMode(getColorMode(), false);
+      applyStyleTheme(readStorage('styleTheme', 'classic'), false);
+
+      if (!appearanceRoot || !appearanceToggle || !appearancePanel) return;
+
+      appearanceToggle.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (appearancePanel.classList.contains('hidden')) {
+          openAppearancePanel();
+        } else {
+          closeAppearancePanel();
+        }
+      });
+
+      colorButtons.forEach(function(button) {
+        button.addEventListener('click', function() {
+          applyColorMode(button.dataset.colorMode);
+        });
+      });
+
+      styleButtons.forEach(function(button) {
+        button.addEventListener('click', function() {
+          applyStyleTheme(button.dataset.styleTheme);
+        });
+      });
+
+      if (colorMedia) {
+        const syncSystemMode = function() {
+          if ((root.dataset.colorMode || getColorMode()) === 'system') {
+            applyColorMode('system', false);
+          }
+        };
+        if (colorMedia.addEventListener) {
+          colorMedia.addEventListener('change', syncSystemMode);
+        } else if (colorMedia.addListener) {
+          colorMedia.addListener(syncSystemMode);
+        }
+      }
+
+      document.addEventListener('click', function(e) {
+        if (!appearancePanel.classList.contains('hidden') && !appearanceRoot.contains(e.target)) {
+          closeAppearancePanel();
+        }
+      });
+
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+          closeAppearancePanel();
+        }
+      });
+    })();
 
     // Header 实时日期时间
     function updateHeaderDateTime() {
@@ -572,6 +1114,10 @@
           notifPanel.classList.add('hidden');
           notifToggle.setAttribute('aria-expanded', 'false');
         } else {
+          const appearancePanelEl = document.getElementById('appearance-panel');
+          const appearanceToggleEl = document.getElementById('appearance-toggle');
+          if (appearancePanelEl) appearancePanelEl.classList.add('hidden');
+          if (appearanceToggleEl) appearanceToggleEl.setAttribute('aria-expanded', 'false');
           notifPanel.classList.remove('hidden');
           notifToggle.setAttribute('aria-expanded', 'true');
         }
@@ -725,7 +1271,7 @@
           if (/^\|[\s\-:]+\|$/.test(row.trim())) continue;
           var cells = row.split('|').filter(function(c,idx,arr){ return idx > 0 && idx < arr.length - 1; });
           var tag = (i === 0) ? 'th' : 'td';
-          var bgStyle = (i === 0) ? 'background:rgba(139,92,246,0.08);font-weight:600;' : (i % 2 === 0 ? 'background:rgba(0,0,0,0.02);' : '');
+          var bgStyle = (i === 0) ? 'background:var(--theme-primary-soft);font-weight:600;' : (i % 2 === 0 ? 'background:rgba(0,0,0,0.02);' : '');
           html += '<tr>';
           for (var j = 0; j < cells.length; j++) {
             html += '<' + tag + ' style="padding:6px 8px;border:1px solid rgba(0,0,0,0.08);text-align:left;' + bgStyle + '">' + cells[j].trim() + '</' + tag + '>';
@@ -740,7 +1286,7 @@
       // *italic* → <i>
       s = s.replace(/(?<!\*)\*([^*]+?)\*(?!\*)/g, '<i>$1</i>');
       // `code` → <code>
-      s = s.replace(/`([^`]+?)`/g, '<code style="background:rgba(139,92,246,0.1);padding:1px 5px;border-radius:4px;font-size:12px;">$1</code>');
+      s = s.replace(/`([^`]+?)`/g, '<code style="background:var(--theme-primary-soft);padding:1px 5px;border-radius:4px;font-size:12px;">$1</code>');
       // ### heading → bold
       s = s.replace(/^#{1,3}\s+(.+)$/gm, '<b>$1</b>');
       // --- → <hr>
