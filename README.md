@@ -75,25 +75,23 @@ flowchart LR
 
 > 三进程分离部署（Web / 定时任务 / 机器人），自动化部署 + 数据库迁移管理，稳定可扩展。
 
-## 🎬 效果演示
+## 🖥 界面预览
 
-> 录一段「派单 → 结算 → 到账」的操作 GIF 放这里最直观（脱敏后）。
+### 经营总览 · 数据看板
+![总览](screenshots/dashboard.png)
 
-![演示](screenshots/demo.gif)
-
-### 界面截图
-
-| 派单大厅 | 订单结算 |
+| 派单大厅（实时凭条） | 订单中心 |
 | :---: | :---: |
 | ![派单](screenshots/dispatch.png) | ![订单](screenshots/orders.png) |
 
-| 钱包 / 提现 | 会员等级 |
+| 多维排行榜 | VIP 等级 / 折扣 |
 | :---: | :---: |
-| ![钱包](screenshots/wallet.png) | ![VIP](screenshots/vip.png) |
+| ![排行榜](screenshots/rankings.png) | ![VIP](screenshots/vip.png) |
 
-| 数据统计 | 机器人播报 |
-| :---: | :---: |
-| ![统计](screenshots/stats.png) | ![播报](screenshots/broadcast.png) |
+### KOOK 播报配置
+![播报](screenshots/broadcast.png)
+
+> 以上界面中的数据均为随机生成的演示数据，仅用于展示界面与功能。
 
 ## 🤝 承接服务
 
